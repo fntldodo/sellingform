@@ -3,67 +3,531 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>셀링폼 - 상품 상세페이지 제작 도구</title>
+    <title>SellingForm - 쇼핑몰 상세페이지를 30분 만에</title>
     <link rel="stylesheet" href="css/app.css">
+    <style>
+        /* ========================================
+           픽사베이 스타일 메인 페이지
+        ======================================== */
+        
+        :root {
+            --primary: #00C896;
+            --primary-dark: #00A67A;
+            --text-dark: #2D3748;
+            --text-light: #718096;
+            --bg-light: #F7FAFC;
+            --white: #FFFFFF;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+            background: var(--bg-light);
+            color: var(--text-dark);
+            line-height: 1.6;
+        }
+
+        /* ========================================
+           헤더 (언어 선택)
+        ======================================== */
+        
+        .header {
+            background: var(--white);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 16px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .language-toggle {
+            display: flex;
+            gap: 8px;
+            background: var(--bg-light);
+            border-radius: 8px;
+            padding: 4px;
+        }
+
+        .lang-btn {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-light);
+            transition: all 0.2s;
+        }
+
+        .lang-btn.active {
+            background: var(--white);
+            color: var(--primary);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .lang-btn:hover:not(.active) {
+            color: var(--text-dark);
+        }
+
+        /* ========================================
+           히어로 섹션
+        ======================================== */
+        
+        .hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 100px 40px;
+            text-align: center;
+        }
+
+        .hero-title {
+            font-size: 56px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            letter-spacing: -0.02em;
+        }
+
+        .hero-subtitle {
+            font-size: 24px;
+            opacity: 0.95;
+            margin-bottom: 40px;
+            font-weight: 400;
+        }
+
+        .hero-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 32px;
+            background: white;
+            color: #667eea;
+            border-radius: 12px;
+            text-decoration: none;
+            font-size: 18px;
+            font-weight: 600;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s;
+        }
+
+        .hero-cta:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+        }
+
+        /* ========================================
+           컨텐츠 타입 선택
+        ======================================== */
+        
+        .content-type-section {
+            max-width: 1400px;
+            margin: 80px auto;
+            padding: 0 40px;
+        }
+
+        .section-title {
+            font-size: 36px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 16px;
+            color: var(--text-dark);
+        }
+
+        .section-subtitle {
+            text-align: center;
+            font-size: 18px;
+            color: var(--text-light);
+            margin-bottom: 60px;
+        }
+
+        .content-type-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 32px;
+            margin-bottom: 60px;
+        }
+
+        .content-card {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 40px 32px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            transition: all 0.3s;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .content-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transform: scaleX(0);
+            transition: transform 0.3s;
+        }
+
+        .content-card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .content-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .content-card.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .content-card.disabled:hover {
+            transform: none;
+            box-shadow: var(--shadow);
+        }
+
+        .content-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .content-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: var(--text-dark);
+        }
+
+        .content-description {
+            font-size: 15px;
+            color: var(--text-light);
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+
+        .content-status {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .status-available {
+            background: #E6FFFA;
+            color: var(--primary-dark);
+        }
+
+        .status-coming {
+            background: #FED7E2;
+            color: #C53030;
+        }
+
+        /* ========================================
+           워크벤치 링크
+        ======================================== */
+        
+        .workbench-link-section {
+            max-width: 1400px;
+            margin: 0 auto 80px;
+            padding: 0 40px;
+        }
+
+        .workbench-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            padding: 48px;
+            text-align: center;
+            color: white;
+        }
+
+        .workbench-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .workbench-subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+            margin-bottom: 28px;
+        }
+
+        .workbench-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            background: white;
+            color: #667eea;
+            border-radius: 10px;
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .workbench-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        /* ========================================
+           푸터
+        ======================================== */
+        
+        .footer {
+            background: var(--text-dark);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .footer-text {
+            opacity: 0.7;
+            font-size: 14px;
+        }
+
+        /* ========================================
+           반응형
+        ======================================== */
+        
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 36px;
+            }
+
+            .hero-subtitle {
+                font-size: 18px;
+            }
+
+            .section-title {
+                font-size: 28px;
+            }
+
+            .content-type-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header-container,
+            .content-type-section,
+            .workbench-link-section {
+                padding: 0 20px;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <!-- 헤더 -->
-        <header class="header">
-            <div class="logo">
-                <h1>📦 SellingForm</h1>
-                <p class="tagline">쇼핑몰 상세페이지를 쉽고 빠르게</p>
+    <!-- 헤더 (언어 선택) -->
+    <header class="header">
+        <div class="header-container">
+            <a href="index.html" class="logo" data-i18n="appName">🎨 SellingForm</a>
+            <div class="language-toggle">
+                <button class="lang-btn active" onclick="setLanguage('ko')">한국어</button>
+                <button class="lang-btn" onclick="setLanguage('en')">English</button>
             </div>
-        </header>
+        </div>
+    </header>
 
-        <!-- 메인 카드 섹션 -->
-        <main class="main-content">
-            <section class="intro">
-                <h2>무엇을 만들고 싶으신가요?</h2>
-                <p>로그인 없이 바로 시작하세요. 모든 작업은 내 컴퓨터에 안전하게 저장됩니다.</p>
-            </section>
+    <!-- 히어로 섹션 -->
+    <section class="hero">
+        <h1 class="hero-title" data-i18n="heroTitle">쇼핑몰 상세페이지를 30분 만에</h1>
+        <p class="hero-subtitle" data-i18n="heroSubtitle">템플릿 선택 → 내용 입력 → Export 완료</p>
+        <a href="#content-types" class="hero-cta" data-i18n="heroCta">
+            <span>시작하기</span>
+            <span>→</span>
+        </a>
+    </section>
 
-            <div class="card-grid">
-                <!-- Module A: 상세페이지 빌더 -->
-                <div class="feature-card" onclick="location.href='pages/detail.html'">
-                    <div class="card-icon">🎨</div>
-                    <h3>상품 상세페이지</h3>
-                    <p>스마트스토어, 쿠팡용 상세페이지를 템플릿으로 빠르게 제작</p>
-                    <div class="card-badge">MVP 1</div>
-                </div>
+    <!-- 컨텐츠 타입 선택 -->
+    <section id="content-types" class="content-type-section">
+        <h2 class="section-title" data-i18n="contentTypeTitle">무엇을 만들고 싶으신가요?</h2>
+        <p class="section-subtitle" data-i18n="contentTypeSubtitle">원하는 콘텐츠를 선택하세요</p>
 
-                <!-- Module B: PDF 편집기 (비활성) -->
-                <div class="feature-card disabled">
-                    <div class="card-icon">📄</div>
-                    <h3>PDF 간편 편집</h3>
-                    <p>PDF 페이지 정리, 텍스트 추가, 서명 삽입</p>
-                    <div class="card-badge soon">준비중</div>
-                </div>
+        <div class="content-type-grid">
+            <!-- 상품 상세페이지 -->
+            <a href="pages/template-gallery.html?type=detail" class="content-card">
+                <div class="content-icon">📦</div>
+                <h3 class="content-title" data-i18n="detailPageTitle">상품 상세페이지</h3>
+                <p class="content-description" data-i18n="detailPageDesc">
+                    쇼핑몰 상품 판매를 위한 전문 상세페이지를 제작합니다
+                </p>
+                <span class="content-status status-available" data-i18n="statusAvailable">사용 가능</span>
+            </a>
 
-                <!-- Module C: 폼 랜딩 빌더 (비활성) -->
-                <div class="feature-card disabled">
-                    <div class="card-icon">📝</div>
-                    <h3>문의/신청 랜딩페이지</h3>
-                    <p>구글폼 연결형 랜딩페이지 제작</p>
-                    <div class="card-badge soon">준비중</div>
-                </div>
+            <!-- 랜딩페이지 -->
+            <div class="content-card disabled">
+                <div class="content-icon">🎯</div>
+                <h3 class="content-title" data-i18n="landingPageTitle">랜딩페이지</h3>
+                <p class="content-description" data-i18n="landingPageDesc">
+                    문의·신청을 위한 고전환율 랜딩페이지를 제작합니다
+                </p>
+                <span class="content-status status-coming" data-i18n="statusComing">준비중</span>
             </div>
 
-            <!-- Workbench 진입 버튼 -->
-            <div class="workbench-section">
-                <button class="btn-workbench" onclick="location.href='pages/workbench.html'">
-                    <span class="icon">💼</span>
-                    <span class="text">내 작업 보기 (Workbench)</span>
-                </button>
+            <!-- PDF 편집 -->
+            <div class="content-card disabled">
+                <div class="content-icon">📄</div>
+                <h3 class="content-title" data-i18n="pdfEditTitle">PDF 간편 편집</h3>
+                <p class="content-description" data-i18n="pdfEditDesc">
+                    기존 PDF 파일을 쉽고 빠르게 편집합니다
+                </p>
+                <span class="content-status status-coming" data-i18n="statusComing">준비중</span>
             </div>
-        </main>
 
-        <!-- 푸터 -->
-        <footer class="footer">
-            <p>SellingForm v3.8 | 모든 데이터는 브라우저에 안전하게 저장됩니다</p>
-        </footer>
-    </div>
+            <!-- 기타 도구 -->
+            <div class="content-card disabled">
+                <div class="content-icon">🔧</div>
+                <h3 class="content-title" data-i18n="toolsTitle">기타 도구</h3>
+                <p class="content-description" data-i18n="toolsDesc">
+                    이미지 변환, 크기 조정 등 유용한 도구들
+                </p>
+                <span class="content-status status-coming" data-i18n="statusComing">준비중</span>
+            </div>
+        </div>
+    </section>
 
+    <!-- 워크벤치 링크 -->
+    <section class="workbench-link-section">
+        <div class="workbench-card">
+            <h3 class="workbench-title" data-i18n="workbenchTitle">💼 내 작업 관리</h3>
+            <p class="workbench-subtitle" data-i18n="workbenchSubtitle">저장된 작업을 확인하고 계속 편집하세요</p>
+            <a href="pages/workbench.html" class="workbench-btn" data-i18n="workbenchBtn">
+                <span>워크벤치 열기</span>
+                <span>→</span>
+            </a>
+        </div>
+    </section>
+
+    <!-- 푸터 -->
+    <footer class="footer">
+        <p class="footer-text">© 2025 SellingForm. Made with ❤️</p>
+    </footer>
+
+    <!-- JS -->
     <script src="js/app.js"></script>
+    <script>
+        // 간단한 다국어 지원
+        const i18n = {
+            ko: {
+                appName: '🎨 SellingForm',
+                heroTitle: '쇼핑몰 상세페이지를 30분 만에',
+                heroSubtitle: '템플릿 선택 → 내용 입력 → Export 완료',
+                heroCta: '시작하기',
+                contentTypeTitle: '무엇을 만들고 싶으신가요?',
+                contentTypeSubtitle: '원하는 콘텐츠를 선택하세요',
+                detailPageTitle: '상품 상세페이지',
+                detailPageDesc: '쇼핑몰 상품 판매를 위한 전문 상세페이지를 제작합니다',
+                landingPageTitle: '랜딩페이지',
+                landingPageDesc: '문의·신청을 위한 고전환율 랜딩페이지를 제작합니다',
+                pdfEditTitle: 'PDF 간편 편집',
+                pdfEditDesc: '기존 PDF 파일을 쉽고 빠르게 편집합니다',
+                toolsTitle: '기타 도구',
+                toolsDesc: '이미지 변환, 크기 조정 등 유용한 도구들',
+                statusAvailable: '사용 가능',
+                statusComing: '준비중',
+                workbenchTitle: '💼 내 작업 관리',
+                workbenchSubtitle: '저장된 작업을 확인하고 계속 편집하세요',
+                workbenchBtn: '워크벤치 열기'
+            },
+            en: {
+                appName: '🎨 SellingForm',
+                heroTitle: 'Create Product Pages in 30 Minutes',
+                heroSubtitle: 'Choose Template → Fill Content → Export',
+                heroCta: 'Get Started',
+                contentTypeTitle: 'What do you want to create?',
+                contentTypeSubtitle: 'Select the content type',
+                detailPageTitle: 'Product Detail Page',
+                detailPageDesc: 'Create professional product pages for e-commerce',
+                landingPageTitle: 'Landing Page',
+                landingPageDesc: 'Build high-converting landing pages for inquiries',
+                pdfEditTitle: 'PDF Editor',
+                pdfEditDesc: 'Edit existing PDF files easily and quickly',
+                toolsTitle: 'Other Tools',
+                toolsDesc: 'Image conversion, resizing and more',
+                statusAvailable: 'Available',
+                statusComing: 'Coming Soon',
+                workbenchTitle: '💼 My Workspace',
+                workbenchSubtitle: 'View and continue editing your saved projects',
+                workbenchBtn: 'Open Workbench'
+            }
+        };
+
+        let currentLang = 'ko';
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('language', lang);
+
+            // 버튼 active 상태 변경
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // 텍스트 변경
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.dataset.i18n;
+                if (i18n[lang][key]) {
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                        el.placeholder = i18n[lang][key];
+                    } else {
+                        el.textContent = i18n[lang][key];
+                    }
+                }
+            });
+        }
+
+        // 페이지 로드 시 저장된 언어 적용
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedLang = localStorage.getItem('language') || 'ko';
+            if (savedLang !== 'ko') {
+                const btn = document.querySelector(`.lang-btn[onclick="setLanguage('${savedLang}')"]`);
+                if (btn) btn.click();
+            }
+        });
+
+        // 부드러운 스크롤
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
 </body>
 </html>
