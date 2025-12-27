@@ -323,6 +323,7 @@ function loadLibraries() {
     }
 
     
+    
     // 페이지 로드 시 라이브러리 로드
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', loadLibraries);
