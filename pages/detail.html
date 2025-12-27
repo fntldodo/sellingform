@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>상품 상세페이지 빌더 - SellingForm</title>
+    <link rel="stylesheet" href="../css/app.css">
+    <link rel="stylesheet" href="../css/detail.css">
+</head>
+<body>
+    <div class="detail-container">
+        <!-- 상단 네비게이션 -->
+        <nav class="top-nav">
+            <button class="btn-back" onclick="location.href='../index.html'">
+                ← 홈으로
+            </button>
+            <h1 class="page-title">상품 상세페이지 빌더</h1>
+            <button class="btn-save" id="btnSave">
+                💾 저장
+            </button>
+        </nav>
+
+        <!-- 메인 작업 영역 -->
+        <div class="workspace">
+            <!-- 좌측: 편집 패널 -->
+            <aside class="edit-panel">
+                <div class="panel-header">
+                    <h2>편집</h2>
+                    <select id="templateSelect" class="template-selector">
+                        <option value="beauty_01">Beauty 템플릿 01</option>
+                    </select>
+                </div>
+
+                <div class="sections-list" id="sectionsList">
+                    <!-- 9개 섹션 버튼 -->
+                    <button class="section-btn active" data-section="hero">
+                        <span class="section-icon">🎯</span>
+                        <span class="section-name">HERO</span>
+                    </button>
+                    <button class="section-btn" data-section="usp">
+                        <span class="section-icon">⭐</span>
+                        <span class="section-name">USP-3</span>
+                    </button>
+                    <button class="section-btn" data-section="price">
+                        <span class="section-icon">💰</span>
+                        <span class="section-name">PRICE</span>
+                    </button>
+                    <button class="section-btn" data-section="proof">
+                        <span class="section-icon">✅</span>
+                        <span class="section-name">PROOF</span>
+                    </button>
+                    <button class="section-btn" data-section="detail">
+                        <span class="section-icon">📋</span>
+                        <span class="section-name">DETAIL</span>
+                    </button>
+                    <button class="section-btn" data-section="howto">
+                        <span class="section-icon">📝</span>
+                        <span class="section-name">HOWTO</span>
+                    </button>
+                    <button class="section-btn" data-section="faq">
+                        <span class="section-icon">❓</span>
+                        <span class="section-name">FAQ</span>
+                    </button>
+                    <button class="section-btn" data-section="shipping">
+                        <span class="section-icon">🚚</span>
+                        <span class="section-name">배송·CS</span>
+                    </button>
+                    <button class="section-btn" data-section="brand">
+                        <span class="section-icon">🏢</span>
+                        <span class="section-name">BRAND</span>
+                    </button>
+                </div>
+
+                <!-- 슬롯 편집 영역 -->
+                <div class="slot-editor" id="slotEditor">
+                    <div class="editor-placeholder">
+                        좌측 섹션을 선택하여 편집을 시작하세요
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 우측: 미리보기 캔버스 -->
+            <main class="preview-panel">
+                <div class="preview-header">
+                    <h3>미리보기 (860px)</h3>
+                    <button class="btn-export" id="btnExport">
+                        📦 Export
+                    </button>
+                </div>
+                <div class="canvas-wrapper">
+                    <canvas id="previewCanvas" width="860"></canvas>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- AI 문구 생성 모달 -->
+    <div class="modal" id="aiModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✨ AI 문구 생성</h3>
+                <button class="btn-close" onclick="closeAiModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label>제품명 (필수)</label>
+                    <input type="text" id="aiProductName" placeholder="예: 프리미엄 수분 크림">
+                </div>
+                <div class="input-group">
+                    <label>키워드 3개 (필수)</label>
+                    <input type="text" id="aiKeywords" placeholder="예: 보습, 진정, 저자극">
+                </div>
+                <div class="input-group">
+                    <label>마켓 톤</label>
+                    <select id="aiTone">
+                        <option value="smartstore">스마트스토어</option>
+                        <option value="coupang">쿠팡</option>
+                        <option value="amazon">Amazon</option>
+                    </select>
+                </div>
+                <button class="btn-primary" id="btnGenerateAi">생성하기</button>
+                
+                <div class="ai-results" id="aiResults" style="display: none;">
+                    <!-- 생성된 3개 안 표시 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export 설정 모달 -->
+    <div class="modal" id="exportModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📦 Export 설정</h3>
+                <button class="btn-close" onclick="closeExportModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label>프로젝트명 (파일명에 사용)</label>
+                    <input type="text" id="exportProjectName" placeholder="예: premium_cream">
+                </div>
+                <div class="input-group">
+                    <label>슬라이스 높이 (px)</label>
+                    <input type="number" id="exportSliceHeight" value="1200">
+                    <small>권장: 1000-1500px</small>
+                </div>
+                <div class="input-group">
+                    <label>파일 형식</label>
+                    <select id="exportFormat">
+                        <option value="png">PNG (권장)</option>
+                        <option value="jpg">JPG</option>
+                    </select>
+                </div>
+                <button class="btn-primary" id="btnStartExport">Export 시작</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/db.js"></script>
+    <script src="../js/guards.js"></script>
+    <script src="../js/export.js"></script>
+    <script src="../js/detail.js"></script>
+</body>
+</html>
