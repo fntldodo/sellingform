@@ -1,43 +1,17 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>상품 상세페이지 빌더 - SellingForm</title>
-    <link rel="stylesheet" href="../css/app.css">
-    <link rel="stylesheet" href="../css/detail.css">
-</head>
-<body>
-    <div class="detail-container">
-        <!-- 상단 네비게이션 -->
-        <nav class="top-nav">
-            <button class="btn-back" onclick="location.href='../index.html'">
-                ← 홈으로
-            </button>
-            <h1 class="page-title">상품 상세페이지 빌더</h1>
-            <button class="btn-save" id="btnSave">
-                💾 저장
-            </button>
-        </nav>
+// ============================================================
+// SellingForm v3.8 - Module A: Product Detail Builder
+// 전체 통합 버전 (5개 템플릿 지원)
+// ============================================================
 
-        <!-- 메인 작업 영역 -->
-        <div class="workspace">
-            <!-- 좌측: 편집 패널 -->
-            <aside class="edit-panel">
-                <div class="panel-header">
-                    <h2>편집</h2>
-                    <select id="templateSelect" class="template-selector">
-                        <option value="beauty_01">Beauty 템플릿 01</option>
-                    </select>
-                </div>
+(function() {
+    'use strict';
 
-                <div class="sections-list" id="sectionsList">
-   // ============================================================
+    // ============================================================
     // 전역 상태
     // ============================================================
     
     const State = {
-        currentTemplate: 'beauty_01',  // URL 파라미터로 덮어씌워짐
+        currentTemplate: 'beauty_01',
         currentSection: 'hero',
         projectData: null,
         projectId: null,
@@ -45,7 +19,7 @@
     };
 
     // ============================================================
-    // 5개 템플릿 슬롯 스펙 (확장)
+    // 5개 템플릿 슬롯 스펙
     // ============================================================
     
     const TemplateSpec = {
@@ -508,7 +482,7 @@
     }
 
     // ============================================================
-    // 페이지 초기화 (URL 파라미터 처리 추가)
+    // 페이지 초기화
     // ============================================================
     
     document.addEventListener('DOMContentLoaded', async function() {
@@ -535,7 +509,7 @@
 
         // UI 초기화
         initUI();
-        renderSectionButtons();  // 섹션 버튼 동적 생성
+        renderSectionButtons();
         renderSectionEditor(State.currentSection);
         renderPreview();
 
@@ -543,14 +517,17 @@
     });
 
     // ============================================================
-    // 섹션 버튼 동적 생성 (템플릿별로 다른 섹션)
+    // 섹션 버튼 동적 생성
     // ============================================================
     
     function renderSectionButtons() {
         const template = TemplateSpec[State.currentTemplate];
         const sectionNav = document.querySelector('.section-nav');
         
-        if (!sectionNav) return;
+        if (!sectionNav) {
+            console.warn('section-nav 요소를 찾을 수 없습니다');
+            return;
+        }
         
         sectionNav.innerHTML = '';
         
@@ -571,3 +548,535 @@
             sectionNav.appendChild(btn);
         }
     }
+
+    // ============================================================
+    // UI 초기화
+    // ============================================================
+    
+    function initUI() {
+        // 저장 버튼
+        const btnSave = document.getElementById('btnSave');
+        if (btnSave) {
+            btnSave.addEventListener('click', saveProject);
+        }
+
+        // Export 버튼
+        const btnExport = document.getElementById('btnExport');
+        if (btnExport) {
+            btnExport.addEventListener('click', openExportModal);
+        }
+
+        // AI 문구 생성 버튼 (모달 내)
+        const btnGenerateAi = document.getElementById('btnGenerateAi');
+        if (btnGenerateAi) {
+            btnGenerateAi.addEventListener('click', generateAICopy);
+        }
+
+        // Export 시작 버튼 (모달 내)
+        const btnStartExport = document.getElementById('btnStartExport');
+        if (btnStartExport) {
+            btnStartExport.addEventListener('click', startExport);
+        }
+    }
+
+    // ============================================================
+    // 섹션 선택
+    // ============================================================
+    
+    function selectSection(sectionKey) {
+        State.currentSection = sectionKey;
+
+        // 버튼 active 상태 변경
+        document.querySelectorAll('.section-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        const activeBtn = document.querySelector(`[data-section="${sectionKey}"]`);
+        if (activeBtn) {
+            activeBtn.classList.add('active');
+        }
+
+        // 슬롯 편집기 렌더링
+        renderSectionEditor(sectionKey);
+    }
+
+    // ============================================================
+    // 섹션 편집기 렌더링
+    // ============================================================
+    
+    function renderSectionEditor(sectionKey) {
+        const template = TemplateSpec[State.currentTemplate];
+        const sectionSpec = template.sections[sectionKey];
+        
+        if (!sectionSpec) {
+            console.error('섹션을 찾을 수 없습니다:', sectionKey);
+            return;
+        }
+        
+        const sectionData = State.projectData.data[sectionKey];
+
+        const editorContainer = document.getElementById('slotEditor');
+        if (!editorContainer) {
+            console.error('slotEditor 요소를 찾을 수 없습니다');
+            return;
+        }
+        
+        editorContainer.innerHTML = '';
+
+        // 섹션 제목
+        const sectionTitle = document.createElement('h3');
+        sectionTitle.className = 'section-editor-title';
+        sectionTitle.textContent = `${sectionSpec.icon} ${sectionSpec.name}`;
+        editorContainer.appendChild(sectionTitle);
+
+        // 각 슬롯 렌더링
+        for (const [slotKey, slotSpec] of Object.entries(sectionSpec.slots)) {
+            const slotItem = createSlotItem(slotKey, slotSpec, sectionData[slotKey], sectionKey);
+            editorContainer.appendChild(slotItem);
+        }
+    }
+
+    // ============================================================
+    // 슬롯 아이템 생성
+    // ============================================================
+    
+    function createSlotItem(slotKey, slotSpec, currentValue, sectionKey) {
+        const slotItem = document.createElement('div');
+        slotItem.className = 'slot-item';
+
+        // 레이블
+        const slotLabel = document.createElement('div');
+        slotLabel.className = 'slot-label';
+        
+        const labelText = document.createElement('span');
+        labelText.textContent = slotSpec.label;
+        slotLabel.appendChild(labelText);
+
+        if (slotSpec.required) {
+            const requiredBadge = document.createElement('span');
+            requiredBadge.className = 'slot-required';
+            requiredBadge.textContent = '필수';
+            slotLabel.appendChild(requiredBadge);
+        }
+
+        slotItem.appendChild(slotLabel);
+
+        // 입력 필드
+        let inputElement;
+
+        if (slotSpec.type === 'text') {
+            inputElement = document.createElement('input');
+            inputElement.type = 'text';
+            inputElement.className = 'slot-input';
+            inputElement.value = currentValue || '';
+            inputElement.placeholder = slotSpec.label;
+            if (slotSpec.maxLength) {
+                inputElement.maxLength = slotSpec.maxLength;
+            }
+            inputElement.addEventListener('input', function() {
+                updateSlotData(sectionKey, slotKey, this.value);
+            });
+
+        } else if (slotSpec.type === 'textarea') {
+            inputElement = document.createElement('textarea');
+            inputElement.className = 'slot-input slot-textarea';
+            inputElement.value = currentValue || '';
+            inputElement.placeholder = slotSpec.label;
+            if (slotSpec.maxLength) {
+                inputElement.maxLength = slotSpec.maxLength;
+            }
+            inputElement.addEventListener('input', function() {
+                updateSlotData(sectionKey, slotKey, this.value);
+            });
+
+        } else if (slotSpec.type === 'image') {
+            inputElement = createImageUploadBox(slotKey, currentValue, sectionKey);
+        }
+
+        slotItem.appendChild(inputElement);
+
+        // 프리셋/AI 버튼 (텍스트 필드만)
+        if (slotSpec.type === 'text' || slotSpec.type === 'textarea') {
+            const presetButtons = createPresetButtons(sectionKey, slotKey);
+            slotItem.appendChild(presetButtons);
+        }
+
+        return slotItem;
+    }
+
+    // ============================================================
+    // 이미지 업로드
+    // ============================================================
+
+    function createImageUploadBox(slotKey, currentValue, sectionKey) {
+        const container = document.createElement('div');
+        container.className = 'image-upload-container';
+
+        if (currentValue) {
+            const img = document.createElement('img');
+            img.src = currentValue;
+            img.className = 'image-preview';
+            img.alt = slotKey;
+            container.appendChild(img);
+
+            const changeBtn = document.createElement('button');
+            changeBtn.textContent = '이미지 변경';
+            changeBtn.className = 'btn-secondary';
+            changeBtn.addEventListener('click', () => triggerImageUpload(sectionKey, slotKey));
+            container.appendChild(changeBtn);
+
+        } else {
+            const uploadBox = document.createElement('div');
+            uploadBox.className = 'image-upload-box';
+            uploadBox.innerHTML = `
+                <div style="color: var(--gray-400); font-size: 2rem;">📷</div>
+                <p style="color: var(--gray-500); margin-top: 8px;">클릭하여 이미지 업로드</p>
+            `;
+            uploadBox.addEventListener('click', () => triggerImageUpload(sectionKey, slotKey));
+            container.appendChild(uploadBox);
+        }
+
+        return container;
+    }
+
+    function triggerImageUpload(sectionKey, slotKey) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.style.display = 'none';
+
+        input.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleImageUpload(file, sectionKey, slotKey);
+            }
+        });
+
+        document.body.appendChild(input);
+        input.click();
+        document.body.removeChild(input);
+    }
+
+    function handleImageUpload(file, sectionKey, slotKey) {
+        if (file.size > 5 * 1024 * 1024) {
+            alert('이미지 크기는 5MB 이하여야 합니다.');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const base64 = e.target.result;
+            updateSlotData(sectionKey, slotKey, base64);
+            renderSectionEditor(sectionKey);
+            renderPreview();
+        };
+        reader.onerror = function() {
+            alert('이미지 업로드에 실패했습니다.');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // ============================================================
+    // 프리셋/AI 버튼
+    // ============================================================
+    
+    function createPresetButtons(sectionKey, slotKey) {
+        const container = document.createElement('div');
+        container.className = 'preset-buttons';
+
+        if (!window.SellingForm || !window.SellingForm.AIGuards) {
+            return container;
+        }
+
+        const presets = window.SellingForm.AIGuards.getPresetButtons(sectionKey);
+        presets.forEach((presetText) => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-preset';
+            btn.textContent = presetText;
+            btn.addEventListener('click', () => {
+                applyPreset(sectionKey, slotKey, presetText);
+            });
+            container.appendChild(btn);
+        });
+
+        const aiBtn = document.createElement('button');
+        aiBtn.className = 'btn-preset btn-ai';
+        aiBtn.textContent = '✨ AI 생성';
+        aiBtn.addEventListener('click', () => {
+            openAiModal(sectionKey, slotKey);
+        });
+        container.appendChild(aiBtn);
+
+        return container;
+    }
+
+    function applyPreset(sectionKey, slotKey, presetText) {
+        updateSlotData(sectionKey, slotKey, presetText);
+        renderSectionEditor(sectionKey);
+        renderPreview();
+    }
+
+    // ============================================================
+    // 데이터 업데이트
+    // ============================================================
+    
+    function updateSlotData(sectionKey, slotKey, value) {
+        State.projectData.data[sectionKey][slotKey] = value;
+        State.isModified = true;
+        renderPreview();
+    }
+
+    // ============================================================
+    // 미리보기
+    // ============================================================
+    
+    function renderPreview() {
+        const canvas = document.getElementById('previewCanvas');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        const width = 860;
+        const estimatedHeight = 5000;
+        canvas.height = estimatedHeight;
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, estimatedHeight);
+
+        ctx.fillStyle = '#000000';
+        ctx.font = '20px Arial';
+        ctx.textAlign = 'center';
+
+        let yOffset = 50;
+
+        const heroData = State.projectData.data.hero;
+        if (heroData && heroData.productName) {
+            ctx.font = 'bold 36px Arial';
+            ctx.fillText(heroData.productName, width / 2, yOffset);
+            yOffset += 60;
+        }
+        if (heroData && heroData.mainCopy) {
+            ctx.font = '24px Arial';
+            ctx.fillText(heroData.mainCopy, width / 2, yOffset);
+            yOffset += 50;
+        }
+
+        yOffset += 100;
+        ctx.font = '16px Arial';
+        ctx.fillStyle = '#666666';
+        ctx.fillText('미리보기는 Export 시 완성됩니다', width / 2, yOffset);
+    }
+
+    // ============================================================
+    // AI 모달
+    // ============================================================
+    
+    let currentAiTarget = null;
+
+    function openAiModal(sectionKey, slotKey) {
+        currentAiTarget = { sectionKey, slotKey };
+        
+        if (window.SellingForm && window.SellingForm.Modal) {
+            window.SellingForm.Modal.open('aiModal');
+        }
+    }
+
+    function closeAiModal() {
+        if (window.SellingForm && window.SellingForm.Modal) {
+            window.SellingForm.Modal.close('aiModal');
+        }
+        currentAiTarget = null;
+    }
+
+    function generateAICopy() {
+        const productName = document.getElementById('aiProductName').value;
+        const keywords = document.getElementById('aiKeywords').value;
+        const tone = document.getElementById('aiTone').value;
+
+        if (!productName || !keywords) {
+            alert('제품명과 키워드는 필수입니다.');
+            return;
+        }
+
+        const keywordArray = keywords.split(',').map(k => k.trim());
+        if (keywordArray.length < 3) {
+            alert('키워드를 3개 이상 입력해주세요. (쉼표로 구분)');
+            return;
+        }
+
+        try {
+            const variants = window.SellingForm.AIGuards.generateCopy({
+                section: currentAiTarget.sectionKey,
+                product: productName,
+                keywords: keywordArray,
+                tone: tone
+            });
+
+            displayAiResults(variants);
+        } catch (error) {
+            alert('AI 생성 실패: ' + error.message);
+        }
+    }
+
+    function displayAiResults(variants) {
+        const resultsContainer = document.getElementById('aiResults');
+        if (!resultsContainer) return;
+        
+        resultsContainer.innerHTML = '';
+        resultsContainer.style.display = 'block';
+
+        variants.forEach((variant) => {
+            const card = document.createElement('div');
+            card.className = 'ai-result-card';
+
+            const text = document.createElement('div');
+            text.className = 'result-text';
+            text.textContent = variant.text;
+            card.appendChild(text);
+
+            if (variant.hasWarning) {
+                const warning = document.createElement('div');
+                warning.className = 'ai-warning';
+                warning.innerHTML = `⚠️ ${variant.risks[0].message}`;
+                card.appendChild(warning);
+            }
+
+            const applyBtn = document.createElement('button');
+            applyBtn.className = 'btn-apply';
+            applyBtn.textContent = '이 문구 사용';
+            applyBtn.addEventListener('click', () => {
+                applyAiCopy(variant.text);
+            });
+            card.appendChild(applyBtn);
+
+            resultsContainer.appendChild(card);
+        });
+    }
+
+    function applyAiCopy(text) {
+        updateSlotData(currentAiTarget.sectionKey, currentAiTarget.slotKey, text);
+        renderSectionEditor(currentAiTarget.sectionKey);
+        renderPreview();
+        closeAiModal();
+    }
+
+    // ============================================================
+    // Export 모달
+    // ============================================================
+    
+    function openExportModal() {
+        if (window.SellingForm && window.SellingForm.Modal) {
+            window.SellingForm.Modal.open('exportModal');
+        }
+    }
+
+    function closeExportModal() {
+        if (window.SellingForm && window.SellingForm.Modal) {
+            window.SellingForm.Modal.close('exportModal');
+        }
+    }
+
+    async function startExport() {
+        const projectName = document.getElementById('exportProjectName').value || 'untitled';
+        const sliceHeight = parseInt(document.getElementById('exportSliceHeight').value) || 1200;
+        const format = document.getElementById('exportFormat').value || 'png';
+
+        const canvas = document.getElementById('previewCanvas');
+        if (!canvas) {
+            alert('미리보기 캔버스를 찾을 수 없습니다.');
+            return;
+        }
+
+        closeExportModal();
+
+        if (window.SellingForm && window.SellingForm.Export) {
+            const success = await window.SellingForm.Export.exportToZip(canvas, projectName, {
+                sliceHeight: sliceHeight,
+                format: format
+            });
+
+            if (success) {
+                console.log('Export 완료');
+            }
+        }
+    }
+
+    // ============================================================
+    // 저장/불러오기
+    // ============================================================
+    
+    async function saveProject() {
+        const title = (State.projectData.data.hero && State.projectData.data.hero.productName) || '제목 없음';
+        
+        const canvas = document.getElementById('previewCanvas');
+        let thumbnail = null;
+        if (canvas) {
+            const thumbCanvas = document.createElement('canvas');
+            thumbCanvas.width = 200;
+            thumbCanvas.height = 150;
+            const ctx = thumbCanvas.getContext('2d');
+            ctx.drawImage(canvas, 0, 0, 860, 645, 0, 0, 200, 150);
+            thumbnail = thumbCanvas.toDataURL('image/jpeg', 0.7);
+        }
+
+        const itemData = {
+            type: 'detail',
+            title: title,
+            thumbnail: thumbnail,
+            data: State.projectData
+        };
+
+        try {
+            if (State.projectId) {
+                await window.SellingForm.DB.updateItem(State.projectId, itemData);
+                if (window.SellingForm.Toast) {
+                    window.SellingForm.Toast.show('저장되었습니다!', 2000);
+                }
+            } else {
+                const id = await window.SellingForm.DB.addItem(itemData);
+                State.projectId = id;
+                if (window.SellingForm.Toast) {
+                    window.SellingForm.Toast.show('프로젝트가 생성되었습니다!', 2000);
+                }
+            }
+            State.isModified = false;
+        } catch (error) {
+            alert('저장 실패: ' + error.message);
+        }
+    }
+
+    async function loadProject(id) {
+        try {
+            const item = await window.SellingForm.DB.getItem(id);
+            if (!item) {
+                alert('프로젝트를 찾을 수 없습니다.');
+                return;
+            }
+            State.projectId = id;
+            State.projectData = item.data;
+            State.currentTemplate = item.data.template;
+            State.isModified = false;
+        } catch (error) {
+            alert('불러오기 실패: ' + error.message);
+        }
+    }
+
+    // ============================================================
+    // 페이지 이탈 경고
+    // ============================================================
+    
+    window.addEventListener('beforeunload', function(e) {
+        if (State.isModified) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
+    // ============================================================
+    // 전역 함수 노출
+    // ============================================================
+    
+    window.closeAiModal = closeAiModal;
+    window.closeExportModal = closeExportModal;
+
+})();
+
+            
