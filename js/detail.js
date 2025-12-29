@@ -919,11 +919,11 @@
             thumbnail = thumbCanvas.toDataURL('image/jpeg', 0.7);
         }
 
-        const itemData = {
+const itemData = {
     type: 'detail',
     title: title,
     thumbnail: thumbnail,
-     State.projectData  // ✅ '' 추가
+    data: State.projectData  // ✅ '' 추가!
 };
 
 
