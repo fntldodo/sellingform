@@ -6,6 +6,104 @@
     <title>상세페이지 편집 - SellingForm</title>
     <link rel="stylesheet" href="../css/detail.css">
     <style>
+        /* ========================================
+           모바일 반응형 오버라이드
+        ======================================== */
+        
+        /* 모바일 탭 UI */
+        .mobile-tab-bar {
+            display: none;
+            position: fixed;
+            top: 70px;
+            left: 0;
+            right: 0;
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            z-index: 90;
+            height: 50px;
+        }
+
+        .mobile-tab-bar.active {
+            display: flex;
+        }
+
+        .tab-button {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 15px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #718096;
+            cursor: pointer;
+            position: relative;
+            transition: color 0.2s;
+        }
+
+        .tab-button.active {
+            color: #667eea;
+        }
+
+        .tab-button.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #667eea;
+        }
+
+        /* 모바일에서 패널 전환 */
+        @media (max-width: 968px) {
+            .mobile-tab-bar {
+                display: flex !important;
+            }
+
+            .detail-container {
+                margin-top: 120px; /* header(70) + tab(50) */
+            }
+
+            .editor-panel,
+            .preview-panel {
+                display: none;
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 100% !important;
+                border: none !important;
+            }
+
+            .editor-panel.active,
+            .preview-panel.active {
+                display: flex;
+            }
+
+            .preview-canvas-container {
+                padding: 20px 10px !important;
+            }
+
+            #previewCanvas {
+                max-width: 100%;
+                height: auto !important;
+            }
+
+            /* 헤더 간소화 */
+            .page-title {
+                font-size: 14px;
+            }
+
+            .btn-save,
+            .btn-export {
+                padding: 8px 12px;
+                font-size: 13px;
+            }
+
+            /* 입력 폼 간격 축소 */
+            .slot-editor {
+                padding: 15px !important;
+            }
+        }
+
         /* Export 모달 스타일 */
         .modal {
             display: none;
@@ -175,29 +273,6 @@
         .btn-primary:hover {
             transform: scale(1.02);
         }
-
-        /* AI 모달 스타일 */
-        #aiModal .modal-content {
-            max-width: 500px;
-        }
-
-        #aiResults {
-            margin-top: 20px;
-            display: none;
-        }
-
-        .ai-result-item {
-            padding: 12px;
-            background: #f7fafc;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .ai-result-item:hover {
-            background: #e2e8f0;
-        }
     </style>
 </head>
 <body>
@@ -213,10 +288,20 @@
         </div>
     </header>
 
+    <!-- 모바일 탭 바 -->
+    <div class="mobile-tab-bar">
+        <button class="tab-button active" onclick="switchMobileTab('editor')">
+            ✏️ 편집
+        </button>
+        <button class="tab-button" onclick="switchMobileTab('preview')">
+            👁️ 미리보기
+        </button>
+    </div>
+
     <!-- 메인 컨텐츠 -->
     <div class="detail-container">
         <!-- 왼쪽: 편집 영역 -->
-        <aside class="editor-panel">
+        <aside class="editor-panel active">
             <!-- 섹션 네비게이션 -->
             <div class="section-nav">
                 <!-- JS로 동적 생성됨 -->
@@ -268,8 +353,8 @@
                 <button id="btnGenerateAi" class="btn btn-primary" style="width: 100%;">
                     문구 생성하기
                 </button>
-                <div id="aiResults">
-                    <!-- AI 결과가 여기 표시됨 -->
+                <div id="aiResults" style="margin-top: 20px; display: none;">
+                    <!-- AI 결과 -->
                 </div>
             </div>
         </div>
@@ -284,13 +369,11 @@
             </div>
             
             <div class="modal-body">
-                <!-- 프로젝트 이름 -->
                 <div class="form-group">
                     <label>프로젝트 이름</label>
                     <input type="text" id="exportProjectName" placeholder="예: my-product-page">
                 </div>
                 
-                <!-- Export 타입 선택 -->
                 <div class="form-group">
                     <label>Export 형식</label>
                     
@@ -322,7 +405,6 @@
                     </label>
                 </div>
                 
-                <!-- 이미지 옵션 -->
                 <div id="imageOptions">
                     <div class="form-group">
                         <label>이미지 형식</label>
@@ -344,12 +426,8 @@
             </div>
             
             <div class="modal-footer">
-                <button onclick="closeExportModal()" class="btn btn-cancel">
-                    취소
-                </button>
-                <button onclick="handleExport()" class="btn btn-primary">
-                    🚀 Export 시작
-                </button>
+                <button onclick="closeExportModal()" class="btn btn-cancel">취소</button>
+                <button onclick="handleExport()" class="btn btn-primary">🚀 Export 시작</button>
             </div>
         </div>
     </div>
@@ -362,6 +440,29 @@
     <script src="../js/detail.js"></script>
 
     <script>
+        // ========================================
+        // 모바일 탭 전환
+        // ========================================
+        
+        function switchMobileTab(tab) {
+            const editorPanel = document.querySelector('.editor-panel');
+            const previewPanel = document.querySelector('.preview-panel');
+            const tabButtons = document.querySelectorAll('.tab-button');
+            
+            // 탭 버튼 상태 변경
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // 패널 전환
+            if (tab === 'editor') {
+                editorPanel.classList.add('active');
+                previewPanel.classList.remove('active');
+            } else {
+                editorPanel.classList.remove('active');
+                previewPanel.classList.add('active');
+            }
+        }
+
         // ========================================
         // Export 관련 함수들
         // ========================================
@@ -387,7 +488,6 @@
             
             closeExportModal();
             
-            // 로딩 표시
             if (window.SellingForm && window.SellingForm.Utils) {
                 window.SellingForm.Utils.showLoading('Export 중...');
             }
@@ -426,27 +526,18 @@
         }
 
         function openExportModal() {
-            const modal = document.getElementById('exportModal');
-            if (modal) {
-                modal.classList.add('active');
-            }
+            document.getElementById('exportModal').classList.add('active');
         }
 
         function closeExportModal() {
-            const modal = document.getElementById('exportModal');
-            if (modal) {
-                modal.classList.remove('active');
-            }
+            document.getElementById('exportModal').classList.remove('active');
         }
 
         function closeAiModal() {
-            const modal = document.getElementById('aiModal');
-            if (modal) {
-                modal.classList.remove('active');
-            }
+            document.getElementById('aiModal').classList.remove('active');
         }
 
-        // Export 버튼 이벤트 바인딩
+        // Export 버튼 이벤트
         document.addEventListener('DOMContentLoaded', function() {
             const btnExport = document.getElementById('btnExport');
             if (btnExport) {
@@ -456,16 +547,13 @@
 
         // 모달 배경 클릭 닫기
         document.getElementById('exportModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeExportModal();
-            }
+            if (e.target === this) closeExportModal();
         });
 
         document.getElementById('aiModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeAiModal();
-            }
+            if (e.target === this) closeAiModal();
         });
     </script>
 </body>
 </html>
+
