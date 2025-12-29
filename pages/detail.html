@@ -63,6 +63,28 @@
             .detail-container {
                 margin-top: 120px; /* header(70) + tab(50) */
             }
+                /* 섹션 네비게이션 스크롤 방지 */
+    .section-nav {
+        position: sticky !important;
+        top: 120px !important;
+        background: white !important;
+        z-index: 50 !important;
+        padding: 15px !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+    }
+
+    /* 슬롯 편집기 바로 아래 표시 */
+    .slot-editor {
+        margin-top: 0 !important;
+        padding: 15px !important;
+    }
+
+    /* 편집 패널 스크롤 */
+    .editor-panel {
+        overflow-y: auto !important;
+        max-height: calc(100vh - 120px) !important;
+    }
+
 
             .editor-panel,
             .preview-panel {
