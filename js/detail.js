@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>상세페이지 편집 - SellingForm</title>
+    <link rel="stylesheet" href="../css/detail.css">
+    <style>
+        /* 추가 스타일 (Export 모달 개선) */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            padding: 24px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a202c;
+        }
+
+        .modal-header button {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .modal-header button:hover {
+            background: #f7fafc;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-footer {
+            padding: 24px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 12px;
+        }
+
+        .export-type-option {
+            display: flex;
+            align-items: flex-start;
+            padding: 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .export-type-option:hover {
+            border-color: #667eea;
+            background: #f7fafc;
+        }
+
+        .export-type-option input[type="radio"] {
+            margin-right: 12px;
+            margin-top: 2px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .export-type-option input[type="radio"]:checked {
+            accent-color: #667eea;
+        }
+
+        .option-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #333;
+        }
+
+        .option-desc {
+            font-size: 13px;
+            color: #666;
+            margin: 0;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .form-hint {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .btn {
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-cancel {
+            flex: 1;
+            background: #f7fafc;
+            color: #333;
+        }
+
+        .btn-cancel:hover {
+            background: #e2e8f0;
+        }
+
+        .btn-primary {
+            flex: 2;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.02);
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="detail-header">
+        <div class="header-left">
+            <a href="../index.html" class="btn-back">← 홈으로</a>
+            <h1 class="page-title">상세페이지 편집</h1>
+        </div>
+        <div class="header-right">
+            <button id="btnSave" class="btn-save">💾 저장</button>
+            <button id="btnExport" class="btn-export">📦 Export</button>
+        </div>
+    </header>
+
+    <!-- 메인 컨텐츠 -->
+    <div class="detail-container">
+        <!-- 왼쪽: 편집 영역 -->
+        <aside class="editor-panel">
+            <!-- 섹션 네비게이션 -->
+            <div class="section-nav">
+                <!-- JS로 동적 생성됨 -->
+            </div>
+
+            <!-- 슬롯 편집기 -->
+            <div class="slot-editor" id="slotEditor">
+                <!-- JS로 동적 생성됨 -->
+            </div>
+        </aside>
+
+        <!-- 오른쪽: 미리보기 -->
+        <main class="preview-panel">
+            <div class="preview-header">
+                <h3>실시간 미리보기</h3>
+                <p>Export 시 완성된 형태로 생성됩니다</p>
+            </div>
+            <div class="preview-canvas-container">
+                <canvas id="previewCanvas" width="860" height="5000"></canvas>
+            </div>
+        </main>
+    </div>
+
+    <!-- ============================================================
+         AI 문구 생성 모달
+    ============================================================ -->
+    <div class="modal" id="aiModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✨ AI 문구 생성</h3>
+                <button onclick="closeAiModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>제품명</label>
+                    <input type="text" id="aiProductName" placeholder="예: 프리미엄 비타민C 세럼">
+                </div>
+                <div class="form-group">
+                    <label>키워드 (3개 이상, 쉼표로 구분)</label>
+                    <input type="text" id="aiKeywords" placeholder="예: 미백, 탄력, 보습">
+                </div>
+                <div class="form-group">
+                    <label>톤 & 매너</label>
+                    <select id="aiTone">
+                        <option value="professional">전문적</option>
+                        <option value="friendly">친근함</option>
+                        <option value="luxurious">고급스러움</option>
+                        <option value="urgent">긴급함</option>
+                    </select>
+                </div>
+                <button id="btnGenerateAi" class="btn btn-primary" style="width: 100%;">
+                    문구 생성하기
+                </button>
+                <div id="aiResults" style="margin-top: 20px; display: none;">
+                    <!-- AI 결과가 여기 표시됨 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         Export 모달 (개선됨)
+    ============================================================ -->
+    <div class="modal" id="exportModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Export 옵션</h3>
+                <button onclick="closeExportModal()">✕</button>
+            </div>
+            
+            <div class="modal-body">
+                <!-- 프로젝트 이름 -->
+                <div class="form-group">
+                    <label>프로젝트 이름</label>
+                    <input type="text" id="exportProjectName" placeholder="예: my-product-page">
+                </div>
+                
+                <!-- Export 타입 선택 -->
+                <div class="form-group">
+                    <label>Export 형식</label>
+                    
+                    <label class="export-type-option">
+                        <input type="radio" name="exportType" value="image" checked 
+                               onchange="toggleExportOptions(this.value)">
+                        <div>
+                            <div class="option-title">📦 이미지로 Export</div>
+                            <p class="option-desc">PNG/JPG 이미지 파일로 슬라이스하여 다운로드</p>
+                        </div>
+                    </label>
+                    
+                    <label class="export-type-option">
+                        <input type="radio" name="exportType" value="html" 
+                               onchange="toggleExportOptions(this.value)">
+                        <div>
+                            <div class="option-title">🌐 HTML로 Export</div>
+                            <p class="option-desc">실제 작동하는 웹페이지(HTML + CSS + 이미지)</p>
+                        </div>
+                    </label>
+                    
+                    <label class="export-type-option">
+                        <input type="radio" name="exportType" value="both" 
+                               onchange="toggleExportOptions(this.value)">
+                        <div>
+                            <div class="option-title">🎁 둘 다 Export</div>
+                            <p class="option-desc">이미지와 HTML 모두 별도 ZIP으로 다운로드</p>
+                        </div>
+                    </label>
+                </div>
+                
+                <!-- 이미지 옵션 (조건부 표시) -->
+                <div id="imageOptions">
+                    <div class="form-group">
+                        <label>이미지 형식</label>
+                        <select id="exportFormat">
+                            <option value="png">PNG (고품질, 투명 지원)</option>
+                            <option value="jpg">JPG (작은 용량)</option>
+                            <option value="webp">WEBP (최적화)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>슬라이스 높이 (px)</label>
+                        <input type="number" id="exportSliceHeight" value="1200" min="500" max="3000" step="100">
+                        <div class="form-hint">
+                            💡 높이가 클수록 파일 개수가 줄어듭니다 (권장: 1200px)
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button onclick="closeExportModal()" class="btn btn-cancel">
+                    취소
+                </button>
+                <button onclick="handleExport()" class="btn btn-primary">
+                    🚀 Export 시작
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JS 파일들 -->
+    <script src="../js/app.js"></script>
+    <script src="../js/db.js"></script>
+    <script src="../js/guards.js"></script>
+    <script src="../js/export.js"></script>
+    <script src="../js/detail.js"></script>
+
+    <script>
+        // ============================================================
+        // Export 관련 함수들
+        // ============================================================
+        
+        function toggleExportOptions(exportType) {
+            const imageOptions = document.getElementById('imageOptions');
+            if (exportType === 'html') {
+                imageOptions.style.display = 'none';
+            } else {
+                imageOptions.style.display = 'block';
+            }
+        }
+
+        async function handleExport() {
+            const exportType = document.querySelector('input[name="exportType"]:checked').value;
+            const projectName = document.getElementById('exportProjectName').value || 'sellingform-project';
+            
+            const options = {
+                projectName: projectName,
+                sliceHeight: parseInt(document.getElementById('exportSliceHeight').value) || 1200,
+                format: document.getElementById('exportFormat').value || 'png'
+            };
+            
+            closeExportModal();
+            
+            // 로딩 표시
+            if (window.SellingForm && window.SellingForm.Utils) {
+                window.SellingForm.Utils.showLoading('Export 중...');
+            }
+            
+            try {
+                // 전역 상태에서 프로젝트 데이터 가져오기
+                const projectData = window.detailBuilderState?.projectData;
+                
+                if (!projectData) {
+                    alert('프로젝트 데이터를 찾을 수 없습니다.');
+                    if (window.SellingForm && window.SellingForm.Utils) {
+                        window.SellingForm.Utils.hideLoading();
+                    }
+                    return;
+                }
+                
+                const success = await window.SellingForm.Export.startExport(exportType, projectData, options);
+                
+                if (window.SellingForm && window.SellingForm.Utils) {
+                    window.SellingForm.Utils.hideLoading();
+                }
+                
+                if (success) {
+                    if (window.SellingForm && window.SellingForm.Toast) {
+                        window.SellingForm.Toast.show('Export 완료!', 2000);
+                    } else {
+                        alert('Export 완료!');
+                    }
+                }
+            } catch (error) {
+                console.error('Export 실패:', error);
+                if (window.SellingForm && window.SellingForm.Utils) {
+                    window.SellingForm.Utils.hideLoading();
+                }
+                alert('Export 중 오류가 발생했습니다: ' + error.message);
+            }
+        }
+
+        function openExportModal() {
+            const modal = document.getElementById('exportModal');
+            if (modal) {
+                modal.classList.add('active');
+            }
+        }
+
+        function closeExportModal() {
+            const modal = document.getElementById('exportModal');
+            if (modal) {
+                modal.classList.remove('active');
+            }
+        }
+
+        // Export 버튼 이벤트 바인딩
+        document.addEventListener('DOMContentLoaded', function() {
+            const btnExport = document.getElementById('btnExport');
+            if (btnExport) {
+                btnExport.addEventListener('click', openExportModal);
+            }
+        });
+    </script>
+</body>
+</html>
