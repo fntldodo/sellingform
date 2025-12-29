@@ -5,10 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Selling Form - Digital Templates Hub</title>
     <style>
-        /* ========================================
-           The Hub 스타일 - 완벽한 모바일 대응
-        ======================================== */
-        
         * {
             margin: 0;
             padding: 0;
@@ -16,34 +12,24 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: #FAFAFA;
             color: #1a1a1a;
             min-height: 100vh;
-            overflow-x: hidden;
         }
 
-        /* ========================================
-           헤더
-        ======================================== */
-        
         .header {
-            background: rgba(255, 255, 255, 0.98);
-            backdrop-filter: blur(10px);
+            background: #FFFFFF;
             border-bottom: 1px solid #E8E8E8;
-            padding: 0 40px;
-            height: 70px;
+            padding: 20px 60px;
             position: sticky;
             top: 0;
             z-index: 100;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
 
         .header-container {
-            width: 100%;
             max-width: 1400px;
+            margin: 0 auto;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -51,10 +37,9 @@
 
         .logo {
             font-size: 22px;
-            font-weight: 800;
+            font-weight: 700;
             color: #000;
             text-decoration: none;
-            letter-spacing: -0.5px;
         }
 
         .header-right {
@@ -63,105 +48,118 @@
             gap: 16px;
         }
 
-        /* 언어 토글 */
-        .lang-toggle {
+        .language-toggle {
             display: flex;
             gap: 4px;
-            background: #F0F0F0;
-            padding: 4px;
+            background: #F5F5F5;
             border-radius: 8px;
+            padding: 4px;
         }
 
         .lang-btn {
+            padding: 6px 12px;
             border: none;
             background: transparent;
-            font-size: 12px;
-            font-weight: 700;
-            padding: 6px 10px;
             border-radius: 6px;
             cursor: pointer;
-            color: #888;
+            font-size: 13px;
+            font-weight: 600;
+            color: #666;
             transition: all 0.2s;
         }
 
         .lang-btn.active {
-            background: #fff;
+            background: #FFFFFF;
             color: #000;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
-        .btn-workbench {
-            padding: 10px 20px;
+        .workbench-btn {
+            padding: 10px 24px;
             background: #000;
             color: #fff;
-            border-radius: 20px;
-            text-decoration: none;
+            border: none;
+            border-radius: 8px;
             font-size: 14px;
             font-weight: 600;
-            transition: opacity 0.2s;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            display: inline-block;
         }
 
-        .btn-workbench:hover {
-            opacity: 0.85;
+        .workbench-btn:hover {
+            background: #333;
         }
 
-        /* ========================================
-           히어로 섹션
-        ======================================== */
-        
         .hero {
             text-align: center;
-            padding: 100px 20px 60px;
+            padding: 100px 40px 60px;
         }
 
         .hero-title {
-            font-size: 64px;
-            font-weight: 800;
-            background: linear-gradient(135deg, #1a1a1a 0%, #4a4a4a 100%);
+            font-size: 72px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
             letter-spacing: -2px;
         }
 
         .hero-subtitle {
-            font-size: 18px;
+            font-size: 20px;
             color: #666;
             font-weight: 400;
         }
 
-        /* ========================================
-           카드 그리드 (4개)
-        ======================================== */
-        
         .cards-container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 0 40px 100px;
+        }
+
+        .cards-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 30px;
         }
 
         .card {
-            background: white;
-            border: 1px solid #E5E7EB;
-            border-radius: 24px;
-            padding: 40px;
+            background: #FFFFFF;
+            border-radius: 20px;
+            padding: 50px 35px;
             text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid #E8E8E8;
             text-decoration: none;
             color: inherit;
-            transition: all 0.3s;
             position: relative;
             overflow: hidden;
-            cursor: pointer;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.03) 0%, rgba(118, 75, 162, 0.03) 100%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .card:hover::before {
+            opacity: 1;
         }
 
         .card:hover {
             transform: translateY(-8px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.08);
-            border-color: #000;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+            border-color: #667eea;
         }
 
         .card.disabled {
@@ -172,95 +170,106 @@
         .card.disabled:hover {
             transform: none;
             box-shadow: none;
-            border-color: #E5E7EB;
+            border-color: #E8E8E8;
         }
 
-        .icon-box {
-            width: 64px;
-            height: 64px;
-            border-radius: 16px;
+        .card-icon-wrapper {
+            width: 70px;
+            height: 70px;
+            border-radius: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 28px;
-            font-weight: 700;
             margin: 0 auto 24px;
+            font-size: 32px;
+            font-weight: 700;
         }
 
-        .icon-orange {
-            background: #FFF7ED;
-            color: #F97316;
+        .card-icon-orange {
+            background: #FFE8D6;
+            color: #FF6B35;
         }
 
-        .icon-blue {
-            background: #EFF6FF;
+        .card-icon-blue {
+            background: #D6E8FF;
             color: #3B82F6;
         }
 
-        .icon-green {
-            background: #ECFDF5;
+        .card-icon-green {
+            background: #D1FAE5;
             color: #10B981;
         }
 
-        .icon-purple {
-            background: #FAF5FF;
+        .card-icon-purple {
+            background: #E9D5FF;
             color: #A855F7;
         }
 
         .card-title {
-            font-size: 20px;
+            font-size: 24px;
             font-weight: 700;
-            margin-bottom: 8px;
             color: #1a1a1a;
+            margin-bottom: 10px;
         }
 
-        .card-desc {
-            font-size: 14px;
+        .card-description {
+            font-size: 15px;
             color: #666;
-            line-height: 1.5;
+            line-height: 1.6;
             margin-bottom: 16px;
         }
 
-        .badge {
+        .card-status {
             display: inline-block;
-            padding: 6px 12px;
+            padding: 6px 14px;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 600;
         }
 
-        .badge-ready {
-            background: #DCFCE7;
-            color: #166534;
+        .status-ready {
+            background: #D1FAE5;
+            color: #065F46;
         }
 
-        .badge-soon {
-            background: #F3F4F6;
-            color: #6B7280;
+        .status-coming {
+            background: #FEE2E2;
+            color: #991B1B;
         }
 
-        /* ========================================
-           반응형 (모바일)
-        ======================================== */
-        
-        @media (max-width: 768px) {
+        @media (max-width: 968px) {
             .header {
-                padding: 0 20px;
-                height: 60px;
+                padding: 16px 30px;
+            }
+
+            .hero-title {
+                font-size: 48px;
+            }
+
+            .hero-subtitle {
+                font-size: 18px;
+            }
+
+            .cards-grid {
+                gap: 24px;
+            }
+
+            .card {
+                padding: 40px 30px;
+            }
+
+            .card-title {
+                font-size: 22px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .header {
+                padding: 16px 20px;
             }
 
             .logo {
                 font-size: 18px;
-            }
-
-            .btn-workbench {
-                padding: 8px 16px;
-                font-size: 13px;
-            }
-
-            .lang-btn {
-                font-size: 11px;
-                padding: 5px 8px;
             }
 
             .hero {
@@ -268,7 +277,7 @@
             }
 
             .hero-title {
-                font-size: 40px;
+                font-size: 36px;
             }
 
             .hero-subtitle {
@@ -276,92 +285,80 @@
             }
 
             .cards-container {
-                grid-template-columns: 1fr;
                 padding: 0 20px 60px;
+            }
+
+            .cards-grid {
+                grid-template-columns: 1fr;
                 gap: 20px;
             }
 
             .card {
-                padding: 30px;
-            }
-
-            .icon-box {
-                width: 56px;
-                height: 56px;
-                font-size: 24px;
+                padding: 35px 25px;
             }
 
             .card-title {
-                font-size: 18px;
+                font-size: 20px;
             }
 
-            .card-desc {
-                font-size: 13px;
+            .card-description {
+                font-size: 14px;
             }
         }
     </style>
 </head>
 <body>
-    <!-- 헤더 -->
     <header class="header">
         <div class="header-container">
             <a href="index.html" class="logo">Selling Form</a>
             <div class="header-right">
-                <div class="lang-toggle">
-                    <button class="lang-btn active" onclick="setLang('ko')">KO</button>
-                    <button class="lang-btn" onclick="setLang('en')">EN</button>
+                <div class="language-toggle">
+                    <button class="lang-btn active" onclick="setLanguage('ko')">KO</button>
+                    <button class="lang-btn" onclick="setLanguage('en')">EN</button>
                 </div>
-                <a href="pages/workbench.html" class="btn-workbench" data-i18n="workbench">💼 내 작업</a>
+                <a href="pages/workbench.html" class="workbench-btn" data-i18n="workbench">💼 내 작업</a>
             </div>
         </div>
     </header>
 
-    <!-- 히어로 -->
     <section class="hero">
         <h1 class="hero-title">The Hub</h1>
         <p class="hero-subtitle" data-i18n="subtitle">전문가를 위한 프리미엄 디지털 템플릿</p>
     </section>
 
-    <!-- 카드 -->
     <div class="cards-container">
-        <!-- 상세페이지 폼 -->
-        <a href="pages/template-gallery.html?type=detail" class="card">
-            <div class="icon-box icon-orange">D</div>
-            <h3 class="card-title" data-i18n="card1Title">상세페이지 폼</h3>
-            <p class="card-desc" data-i18n="card1Desc">쇼핑몰 상품 상세페이지를 빠르게 제작</p>
-            <span class="badge badge-ready" data-i18n="statusReady">✓ 바로 시작</span>
-        </a>
+        <div class="cards-grid">
+            <a href="pages/template-gallery.html?type=detail" class="card">
+                <div class="card-icon-wrapper card-icon-orange">D</div>
+                <h2 class="card-title" data-i18n="card1Title">상세페이지 폼</h2>
+                <p class="card-description" data-i18n="card1Desc">쇼핑몰 상품 상세페이지를 빠르게 제작</p>
+                <span class="card-status status-ready" data-i18n="statusReady">✓ 바로 시작</span>
+            </a>
 
-        <!-- 웹사이트 레이아웃 -->
-        <a href="#" class="card disabled">
-            <div class="icon-box icon-blue">S</div>
-            <h3 class="card-title" data-i18n="card2Title">웹사이트 레이아웃</h3>
-            <p class="card-desc" data-i18n="card2Desc">기업/마케팅 랜딩페이지 전체 코드 다운로드</p>
-            <span class="badge badge-soon" data-i18n="statusSoon">곧 출시</span>
-        </a>
+            <a href="pages/website-layouts.html" class="card disabled">
+                <div class="card-icon-wrapper card-icon-blue">S</div>
+                <h2 class="card-title" data-i18n="card2Title">웹사이트 레이아웃</h2>
+                <p class="card-description" data-i18n="card2Desc">기업/마케팅 랜딩페이지 전체 코드 다운로드</p>
+                <span class="card-status status-coming" data-i18n="statusComing">곧 출시</span>
+            </a>
 
-        <!-- PDF 편집 -->
-        <a href="#" class="card disabled">
-            <div class="icon-box icon-green">P</div>
-            <h3 class="card-title" data-i18n="card3Title">PDF 편집</h3>
-            <p class="card-desc" data-i18n="card3Desc">PDF 파일 병합, 분할, 페이지 추출</p>
-            <span class="badge badge-soon" data-i18n="statusSoon">곧 출시</span>
-        </a>
+            <a href="pages/pdf-editor.html" class="card disabled">
+                <div class="card-icon-wrapper card-icon-green">P</div>
+                <h2 class="card-title" data-i18n="card3Title">PDF 편집</h2>
+                <p class="card-description" data-i18n="card3Desc">PDF 파일 병합, 분할, 페이지 추출</p>
+                <span class="card-status status-coming" data-i18n="statusComing">곧 출시</span>
+            </a>
 
-        <!-- 이미지 도구 -->
-        <a href="#" class="card disabled">
-            <div class="icon-box icon-purple">I</div>
-            <h3 class="card-title" data-i18n="card4Title">이미지 도구</h3>
-            <p class="card-desc" data-i18n="card4Desc">이미지 변환, 크기 조정, 압축</p>
-            <span class="badge badge-soon" data-i18n="statusSoon">곧 출시</span>
-        </a>
+            <a href="pages/image-tools.html" class="card disabled">
+                <div class="card-icon-wrapper card-icon-purple">I</div>
+                <h2 class="card-title" data-i18n="card4Title">이미지 도구</h2>
+                <p class="card-description" data-i18n="card4Desc">이미지 변환, 크기 조정, 압축</p>
+                <span class="card-status status-coming" data-i18n="statusComing">곧 출시</span>
+            </a>
+        </div>
     </div>
 
     <script>
-        // ========================================
-        // 다국어 지원
-        // ========================================
-        
         const i18n = {
             ko: {
                 workbench: '💼 내 작업',
@@ -375,13 +372,13 @@
                 card4Title: '이미지 도구',
                 card4Desc: '이미지 변환, 크기 조정, 압축',
                 statusReady: '✓ 바로 시작',
-                statusSoon: '곧 출시'
+                statusComing: '곧 출시'
             },
             en: {
                 workbench: '💼 My Work',
                 subtitle: 'Premium Digital Templates for Professionals',
                 card1Title: 'Product Details',
-                card1Desc: 'Create e-commerce product pages quickly',
+                card1Desc: 'Create product pages quickly',
                 card2Title: 'Website Layouts',
                 card2Desc: 'Full code download for corporate/marketing pages',
                 card3Title: 'PDF Editor',
@@ -389,23 +386,21 @@
                 card4Title: 'Image Tools',
                 card4Desc: 'Convert, resize, compress images',
                 statusReady: '✓ Start Now',
-                statusSoon: 'Coming Soon'
+                statusComing: 'Coming Soon'
             }
         };
 
         let currentLang = 'ko';
 
-        function setLang(lang) {
+        function setLanguage(lang) {
             currentLang = lang;
             localStorage.setItem('language', lang);
 
-            // 버튼 active 상태 변경
             document.querySelectorAll('.lang-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
             event.target.classList.add('active');
 
-            // 텍스트 변경
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.dataset.i18n;
                 if (i18n[lang][key]) {
@@ -414,36 +409,22 @@
             });
         }
 
-        // 페이지 로드 시 저장된 언어 적용
         window.addEventListener('DOMContentLoaded', () => {
             const savedLang = localStorage.getItem('language') || 'ko';
             if (savedLang !== 'ko') {
                 const btns = document.querySelectorAll('.lang-btn');
                 btns.forEach(btn => {
                     if (btn.textContent === savedLang.toUpperCase()) {
-                        // 이벤트 객체 없이 직접 호출
-                        btn.classList.add('active');
-                        document.querySelectorAll('.lang-btn').forEach(b => {
-                            if (b !== btn) b.classList.remove('active');
-                        });
-                        
-                        // 텍스트 변경
-                        document.querySelectorAll('[data-i18n]').forEach(el => {
-                            const key = el.dataset.i18n;
-                            if (i18n[savedLang][key]) {
-                                el.textContent = i18n[savedLang][key];
-                            }
-                        });
+                        btn.click();
                     }
                 });
             }
         });
 
-        // disabled 카드 클릭 방지
         document.querySelectorAll('.card.disabled').forEach(card => {
             card.addEventListener('click', function(e) {
                 e.preventDefault();
-                alert(currentLang === 'ko' ? '곧 출시됩니다!' : 'Coming Soon!');
+                alert('곧 출시됩니다!');
             });
         });
     </script>
