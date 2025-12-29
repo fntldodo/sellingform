@@ -920,11 +920,12 @@
         }
 
         const itemData = {
-            type: 'detail',
-            title: title,
-            thumbnail: thumbnail,
-             State.projectData
-        };
+    type: 'detail',
+    title: title,
+    thumbnail: thumbnail,
+     State.projectData  // ✅ '' 추가
+};
+
 
         try {
             if (State.projectId) {
