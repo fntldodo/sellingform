@@ -3,23 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SellingForm - 쇼핑몰 콘텐츠 제작 툴</title>
+    <title>Selling Form - Digital Templates Hub</title>
     <style>
         /* ========================================
-           픽사베이 스타일 - 초심플 버전
+           The Hub 스타일 - 초심플 디자인
         ======================================== */
         
-        :root {
-            --primary: #00C896;
-            --primary-dark: #00A67A;
-            --text-dark: #2D3748;
-            --text-light: #718096;
-            --bg-light: #F7FAFC;
-            --white: #FFFFFF;
-            --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            --shadow-hover: 0 8px 20px rgba(0, 0, 0, 0.12);
-        }
-
         * {
             margin: 0;
             padding: 0;
@@ -27,25 +16,23 @@
         }
 
         body {
-            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-            background: var(--white);
-            color: var(--text-dark);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', sans-serif;
+            background: #FAFAFA;
+            color: #1a1a1a;
             min-height: 100vh;
         }
 
         /* ========================================
-           헤더 (미니멀)
+           헤더
         ======================================== */
         
         .header {
-            position: fixed;
+            background: #FFFFFF;
+            border-bottom: 1px solid #E8E8E8;
+            padding: 20px 60px;
+            position: sticky;
             top: 0;
-            left: 0;
-            right: 0;
-            background: var(--white);
-            border-bottom: 1px solid #E2E8F0;
             z-index: 100;
-            padding: 20px 40px;
         }
 
         .header-container {
@@ -59,227 +46,223 @@
         .logo {
             font-size: 22px;
             font-weight: 700;
-            color: var(--primary);
+            color: #000;
             text-decoration: none;
             letter-spacing: -0.5px;
         }
 
-        .header-actions {
+        .nav {
             display: flex;
+            gap: 40px;
             align-items: center;
-            gap: 16px;
         }
 
-        .workbench-link {
-            padding: 8px 16px;
-            background: transparent;
-            border: 1px solid #E2E8F0;
-            border-radius: 8px;
-            color: var(--text-dark);
+        .nav-link {
+            color: #666;
             text-decoration: none;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 500;
-            transition: all 0.2s;
+            transition: color 0.2s;
         }
 
-        .workbench-link:hover {
-            border-color: var(--primary);
-            color: var(--primary);
+        .nav-link:hover {
+            color: #000;
         }
 
-        .language-toggle {
-            display: flex;
-            gap: 4px;
-            background: var(--bg-light);
-            border-radius: 8px;
-            padding: 4px;
-        }
-
-        .lang-btn {
-            padding: 6px 12px;
-            border: none;
-            background: transparent;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
+        .nav-link.active {
+            color: #000;
             font-weight: 600;
-            color: var(--text-light);
+        }
+
+        .login-btn {
+            padding: 10px 24px;
+            background: #000;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
             transition: all 0.2s;
         }
 
-        .lang-btn.active {
-            background: var(--white);
-            color: var(--primary);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        .login-btn:hover {
+            background: #333;
         }
 
         /* ========================================
-           메인 컨텐츠 (4개 카드만)
+           히어로 섹션
         ======================================== */
         
-        .main-content {
-            margin-top: 80px;
-            min-height: calc(100vh - 80px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 60px 40px;
+        .hero {
+            text-align: center;
+            padding: 120px 40px 80px;
         }
 
-        .content-grid {
+        .hero-title {
+            font-size: 72px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 20px;
+            letter-spacing: -2px;
+        }
+
+        .hero-subtitle {
+            font-size: 20px;
+            color: #666;
+            font-weight: 400;
+        }
+
+        /* ========================================
+           카드 그리드 (2개)
+        ======================================== */
+        
+        .cards-container {
             max-width: 1200px;
-            width: 100%;
+            margin: 0 auto;
+            padding: 0 40px 100px;
+        }
+
+        .cards-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 32px;
+            gap: 40px;
         }
 
-        .content-card {
-            background: var(--white);
-            border: 2px solid #E2E8F0;
-            border-radius: 20px;
+        .card {
+            background: #FFFFFF;
+            border-radius: 24px;
             padding: 60px 40px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
+            border: 1px solid #E8E8E8;
             text-decoration: none;
             color: inherit;
+            position: relative;
+            overflow: hidden;
         }
 
-        .content-card::before {
+        .card::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
-            height: 4px;
-            background: var(--primary);
-            transform: scaleX(0);
-            transition: transform 0.3s;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.03) 0%, rgba(118, 75, 162, 0.03) 100%);
+            opacity: 0;
+            transition: opacity 0.3s;
         }
 
-        .content-card:hover {
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card:hover {
             transform: translateY(-8px);
-            box-shadow: var(--shadow-hover);
-            border-color: var(--primary);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+            border-color: #667eea;
         }
 
-        .content-card:hover::before {
-            transform: scaleX(1);
+        .card-icon-wrapper {
+            width: 80px;
+            height: 80px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 30px;
+            font-size: 36px;
+            font-weight: 700;
         }
 
-        .content-card.available:hover {
-            background: #F0FFF9;
+        .card-icon-orange {
+            background: #FFE8D6;
+            color: #FF6B35;
         }
 
-        .content-card.disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .content-card.disabled:hover {
-            transform: none;
-            box-shadow: none;
-            border-color: #E2E8F0;
-            background: var(--white);
-        }
-
-        .card-icon {
-            font-size: 72px;
-            margin-bottom: 24px;
-            line-height: 1;
+        .card-icon-blue {
+            background: #D6E8FF;
+            color: #3B82F6;
         }
 
         .card-title {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: 700;
-            color: var(--text-dark);
+            color: #1a1a1a;
             margin-bottom: 12px;
         }
 
         .card-description {
-            font-size: 15px;
-            color: var(--text-light);
+            font-size: 16px;
+            color: #666;
             line-height: 1.6;
-            margin-bottom: 24px;
-        }
-
-        .card-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-        }
-
-        .status-available {
-            background: #D1FAE5;
-            color: #065F46;
-        }
-
-        .status-coming {
-            background: #FEE2E2;
-            color: #991B1B;
         }
 
         /* ========================================
            반응형
         ======================================== */
         
-        @media (max-width: 768px) {
+        @media (max-width: 968px) {
+            .header {
+                padding: 16px 30px;
+            }
+
+            .nav {
+                gap: 24px;
+            }
+
+            .hero-title {
+                font-size: 48px;
+            }
+
+            .hero-subtitle {
+                font-size: 18px;
+            }
+
+            .cards-grid {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+        }
+
+        @media (max-width: 640px) {
             .header {
                 padding: 16px 20px;
             }
 
-            .logo {
-                font-size: 18px;
-            }
-
-            .workbench-link {
+            .nav {
                 display: none;
             }
 
-            .main-content {
-                margin-top: 70px;
-                padding: 30px 20px;
+            .hero {
+                padding: 80px 20px 60px;
             }
 
-            .content-grid {
-                grid-template-columns: 1fr;
-                gap: 20px;
+            .hero-title {
+                font-size: 36px;
             }
 
-            .content-card {
+            .hero-subtitle {
+                font-size: 16px;
+            }
+
+            .cards-container {
+                padding: 0 20px 60px;
+            }
+
+            .card {
                 padding: 40px 30px;
             }
 
-            .card-icon {
-                font-size: 56px;
-            }
-
             .card-title {
-                font-size: 20px;
+                font-size: 24px;
             }
-        }
-
-        /* ========================================
-           푸터 (미니멀)
-        ======================================== */
-        
-        .footer {
-            background: var(--bg-light);
-            padding: 30px 40px;
-            text-align: center;
-            border-top: 1px solid #E2E8F0;
-        }
-
-        .footer-text {
-            font-size: 13px;
-            color: var(--text-light);
         }
     </style>
 </head>
@@ -287,147 +270,51 @@
     <!-- 헤더 -->
     <header class="header">
         <div class="header-container">
-            <a href="index.html" class="logo" data-i18n="appName">SellingForm</a>
-            <div class="header-actions">
-                <a href="pages/workbench.html" class="workbench-link" data-i18n="workbench">💼 내 작업</a>
-                <div class="language-toggle">
-                    <button class="lang-btn active" onclick="setLanguage('ko')">KO</button>
-                    <button class="lang-btn" onclick="setLanguage('en')">EN</button>
-                </div>
-            </div>
+            <a href="index.html" class="logo">Selling Form</a>
+            <nav class="nav">
+                <a href="index.html" class="nav-link active">HOME</a>
+                <a href="pages/template-gallery.html?type=detail" class="nav-link">상세페이지 폼</a>
+                <a href="pages/website-layouts.html" class="nav-link">사이트 폼</a>
+                <a href="pages/workbench.html" class="login-btn">💼 내 작업</a>
+            </nav>
         </div>
     </header>
 
-    <!-- 메인 컨텐츠 -->
-    <main class="main-content">
-        <div class="content-grid">
-            <!-- 상품 상세페이지 -->
-            <a href="pages/template-gallery.html?type=detail" class="content-card available">
-                <div class="card-icon">📦</div>
-                <h2 class="card-title" data-i18n="detailPageTitle">상품 상세페이지</h2>
-                <p class="card-description" data-i18n="detailPageDesc">
-                    전문 디자인 템플릿으로<br>쇼핑몰 상세페이지 제작
-                </p>
-                <span class="card-status status-available" data-i18n="statusAvailable">✓ 바로 시작</span>
+    <!-- 히어로 섹션 -->
+    <section class="hero">
+        <h1 class="hero-title">The Hub</h1>
+        <p class="hero-subtitle">Premium Digital Templates for Professionals</p>
+    </section>
+
+    <!-- 카드 그리드 -->
+    <div class="cards-container">
+        <div class="cards-grid">
+            <!-- Product Details -->
+            <a href="pages/template-gallery.html?type=detail" class="card">
+                <div class="card-icon-wrapper card-icon-orange">D</div>
+                <h2 class="card-title">Product Details</h2>
+                <p class="card-description">High conversion landing pages</p>
             </a>
 
-            <!-- 랜딩페이지 -->
-            <div class="content-card disabled">
-                <div class="card-icon">🎯</div>
-                <h2 class="card-title" data-i18n="landingPageTitle">랜딩페이지</h2>
-                <p class="card-description" data-i18n="landingPageDesc">
-                    고전환율 랜딩페이지<br>빠른 제작
-                </p>
-                <span class="card-status status-coming" data-i18n="statusComing">곧 출시</span>
-            </div>
-
-            <!-- PDF 편집 -->
-            <div class="content-card disabled">
-                <div class="card-icon">📄</div>
-                <h2 class="card-title" data-i18n="pdfEditTitle">PDF 편집</h2>
-                <p class="card-description" data-i18n="pdfEditDesc">
-                    PDF 파일을<br>쉽고 빠르게 편집
-                </p>
-                <span class="card-status status-coming" data-i18n="statusComing">곧 출시</span>
-            </div>
-
-            <!-- 기타 도구 -->
-            <div class="content-card disabled">
-                <div class="card-icon">🔧</div>
-                <h2 class="card-title" data-i18n="toolsTitle">기타 도구</h2>
-                <p class="card-description" data-i18n="toolsDesc">
-                    이미지 변환, 크기 조정<br>편리한 도구
-                </p>
-                <span class="card-status status-coming" data-i18n="statusComing">곧 출시</span>
-            </div>
+            <!-- Website Layouts -->
+            <a href="pages/website-layouts.html" class="card">
+                <div class="card-icon-wrapper card-icon-blue">S</div>
+                <h2 class="card-title">Website Layouts</h2>
+                <p class="card-description">Full corporate & portfolio sites</p>
+            </a>
         </div>
-    </main>
+    </div>
 
-    <!-- 푸터 -->
-    <footer class="footer">
-        <p class="footer-text">© 2025 SellingForm. All rights reserved.</p>
-    </footer>
-
-    <!-- JS -->
     <script>
-        // ========================================
-        // 다국어 지원
-        // ========================================
-        
-        const i18n = {
-            ko: {
-                appName: 'SellingForm',
-                workbench: '💼 내 작업',
-                detailPageTitle: '상품 상세페이지',
-                detailPageDesc: '전문 디자인 템플릿으로\n쇼핑몰 상세페이지 제작',
-                landingPageTitle: '랜딩페이지',
-                landingPageDesc: '고전환율 랜딩페이지\n빠른 제작',
-                pdfEditTitle: 'PDF 편집',
-                pdfEditDesc: 'PDF 파일을\n쉽고 빠르게 편집',
-                toolsTitle: '기타 도구',
-                toolsDesc: '이미지 변환, 크기 조정\n편리한 도구',
-                statusAvailable: '✓ 바로 시작',
-                statusComing: '곧 출시'
-            },
-            en: {
-                appName: 'SellingForm',
-                workbench: '💼 My Work',
-                detailPageTitle: 'Product Page',
-                detailPageDesc: 'Create product pages\nwith pro templates',
-                landingPageTitle: 'Landing Page',
-                landingPageDesc: 'High-converting\nlanding pages',
-                pdfEditTitle: 'PDF Editor',
-                pdfEditDesc: 'Edit PDF files\neasily',
-                toolsTitle: 'Other Tools',
-                toolsDesc: 'Image conversion\nand resizing',
-                statusAvailable: '✓ Start Now',
-                statusComing: 'Coming Soon'
-            }
-        };
-
-        let currentLang = 'ko';
-
-        function setLanguage(lang) {
-            currentLang = lang;
-            localStorage.setItem('language', lang);
-
-            // 버튼 active 상태
-            document.querySelectorAll('.lang-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.classList.add('active');
-
-            // 텍스트 변경
-            document.querySelectorAll('[data-i18n]').forEach(el => {
-                const key = el.dataset.i18n;
-                if (i18n[lang][key]) {
-                    // <br> 태그 처리
-                    const text = i18n[lang][key].replace(/\n/g, '<br>');
-                    el.innerHTML = text;
-                }
-            });
-        }
-
-        // 페이지 로드 시 저장된 언어 적용
-        window.addEventListener('DOMContentLoaded', () => {
-            const savedLang = localStorage.getItem('language') || 'ko';
-            if (savedLang !== 'ko') {
-                const btn = document.querySelector(`.lang-btn[onclick="setLanguage('${savedLang}')"]`);
-                if (btn) btn.click();
-            }
-        });
-
-        // 카드 클릭 애니메이션
-        document.querySelectorAll('.content-card').forEach(card => {
-            card.addEventListener('mousedown', function() {
-                if (!this.classList.contains('disabled')) {
-                    this.style.transform = 'scale(0.98)';
-                }
-            });
-            
-            card.addEventListener('mouseup', function() {
-                if (!this.classList.contains('disabled')) {
-                    this.style.transform = 'translateY(-8px)';
+        // 간단한 네비게이션 하이라이트
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentPath = window.location.pathname;
+            document.querySelectorAll('.nav-link').forEach(link => {
+                if (link.getAttribute('href') === currentPath || 
+                    (currentPath.includes('index.html') && link.textContent === 'HOME')) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
                 }
             });
         });
