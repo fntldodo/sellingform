@@ -11,7 +11,7 @@ const State = {
     currentSection: 'hero',
     projectData: null,
     projectId: null,
-    isModified: false,  // ⬅️ 콤마 필수!
+    isModified: false,
     currentLang: 'ko'
 };
 
@@ -230,12 +230,24 @@ if (!hasRequiredSlots) return false;  // ✅ 이미 올바름
         const btnGenerateAi = document.getElementById('btnGenerateAi');
         if (btnGenerateAi) btnGenerateAi.addEventListener('click', generateAICopy);
         
-        const btnToggleLang = document.getElementById('btnToggleLang');
-        if (btnToggleLang) {
+    const btnToggleLang = document.getElementById('btnToggleLang');
+    if (btnToggleLang) {
         btnToggleLang.addEventListener('click', () => {
             State.currentLang = State.currentLang === 'ko' ? 'en' : 'ko';
+            
+            // 버튼 색상 변경
+            btnToggleLang.classList.remove('active-ko', 'active-en');
+            if (State.currentLang === 'ko') {
+                btnToggleLang.classList.add('active-ko');
+            } else {
+                btnToggleLang.classList.add('active-en');
+            }
+            
             renderSectionButtons();
         });
+        
+        // 초기 상태 설정
+        btnToggleLang.classList.add('active-ko');
     }
     }
 
