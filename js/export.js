@@ -240,7 +240,7 @@
     function renderHeroSection(data) {
         return `
     <section class="hero-section">
-        ${data.mainImage ? `<div class="hero-image"><img src="images/hero_main.jpg" alt="${data.productName || ''}"></div>` : ''}
+        ${data.mainImage ? '<div class="hero-image"><img src="images/hero_main.jpg" alt="' + (data.productName || '') + '"></div>' : ''}
         <div class="hero-content">
             <h1 class="product-name">${data.productName || ''}</h1>
             ${data.mainCopy ? `<p class="main-copy">${data.mainCopy}</p>` : ''}
