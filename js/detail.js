@@ -11,7 +11,7 @@
         currentSection: 'hero',
         projectData: null,
         projectId: null,
-        isModified: false
+        isModified: false,
          currentLang: 'ko'
     };
 
@@ -200,8 +200,8 @@ function renderSectionButtons() {
         const sectionData = State.projectData.data[sectionKey];
         if (!sectionData) return false;
         
-        const hasRequiredSlots = checkSectionHasRequired(sectionSpec);
-if (!hasRequiredSlots) return false;  // ✅ 필수 없으면 표시 안 함
+       const hasRequiredSlots = checkSectionHasRequired(sectionSpec);
+if (!hasRequiredSlots) return false;  // ✅ 이미 올바름
 
         // 모든 필수 항목 체크
         for (const [slotKey, slotSpec] of Object.entries(sectionSpec.slots)) {
