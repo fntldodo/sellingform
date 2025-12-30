@@ -471,54 +471,75 @@
         console.log('Detail Builder 초기화 완료 - 템플릿:', State.currentTemplate);
     });
 
-    // ============================================================
-    // 섹션 버튼 동적 생성
-    // ============================================================
-    
-   function renderSectionButtons() {
-    const template = TemplateSpec[State.currentTemplate];
-    const sectionNav = document.querySelector('.section-nav');
-    
-    if (!sectionNav) {
-        console.warn('section-nav 요소를 찾을 수 없습니다');
-        return;
-    }
-    
-    sectionNav.innerHTML = '';
-    
-    for (const [sectionKey, sectionSpec] of Object.entries(template.sections)) {
-        const btn = document.createElement('button');
-        btn.className = 'section-btn';
-        btn.dataset.section = sectionKey;
+      function renderSectionButtons() {
+        const template = TemplateSpec[State.currentTemplate];
+        const sectionNav = document.querySelector('.section-nav');
         
-        // 작성 완료 여부 체크
-        const isCompleted = checkSectionCompleted(sectionKey, sectionSpec);
-        const hasRequired = checkSectionHasRequired(sectionSpec);
-        
-        // 아이콘 + 이름 + 상태 표시
-        let statusIcon = '';
-        if (isCompleted) {
-            statusIcon = ' ✓';
-            btn.classList.add('completed');
-        } else if (hasRequired) {
-            statusIcon = ' !';
-            btn.classList.add('required');
+        if (!sectionNav) {
+            console.warn('section-nav 요소를 찾을 수 없습니다');
+            return;
         }
         
-        btn.innerHTML = `${sectionSpec.icon} ${sectionSpec.name}${statusIcon}`;
+        sectionNav.innerHTML = '';
         
-        if (sectionKey === State.currentSection) {
-            btn.classList.add('active');
+        for (const [sectionKey, sectionSpec] of Object.entries(template.sections)) {
+            const btn = document.createElement('button');
+            btn.className = 'section-btn';
+            btn.dataset.section = sectionKey;
+            
+            // ⬇️⬇️⬇️ 새로 추가된 부분 ⬇️⬇️⬇️
+            const isCompleted = checkSectionCompleted(sectionKey, sectionSpec);
+            const hasRequired = checkSectionHasRequired(sectionSpec);
+            
+            let statusIcon = '';
+            if (isCompleted) {
+                statusIcon = ' ✓';
+                btn.classList.add('completed');
+            } else if (hasRequired) {
+                statusIcon = ' !';
+                btn.classList.add('required');
+            }
+            
+            btn.innerHTML = `${sectionSpec.icon} ${sectionSpec.name}${statusIcon}`;
+            // ⬆️⬆️⬆️ 여기까지 새로 추가 ⬆️⬆️⬆️
+            
+            if (sectionKey === State.currentSection) {
+                btn.classList.add('active');
+            }
+            
+            btn.addEventListener('click', function() {
+                selectSection(sectionKey);
+            });
+            
+            sectionNav.appendChild(btn);
         }
-        
-        btn.addEventListener('click', function() {
-            selectSection(sectionKey);
-        });
-        
-        sectionNav.appendChild(btn);
     }
-}
 
+    // ⬇️⬇️⬇️ renderSectionButtons 바로 아래에 2개 함수 추가 ⬇️⬇️⬇️
+    
+    function checkSectionCompleted(sectionKey, sectionSpec) {
+        const sectionData = State.projectData.data[sectionKey];
+        if (!sectionData) return false;
+        
+        for (const [slotKey, slotSpec] of Object.entries(sectionSpec.slots)) {
+            if (slotSpec.required) {
+                const value = sectionData[slotKey];
+                if (!value || (typeof value === 'string' && value.trim() === '')) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    function checkSectionHasRequired(sectionSpec) {
+        for (const slotSpec of Object.values(sectionSpec.slots)) {
+            if (slotSpec.required) return true;
+        }
+        return false;
+    }
+
+    
 // 섹션 작성 완료 여부 체크
 function checkSectionCompleted(sectionKey, sectionSpec) {
     const sectionData = State.projectData.data[sectionKey];
