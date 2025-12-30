@@ -1,6 +1,6 @@
 // ============================================================
-// SellingForm v3.11 - Module A: Product Detail Builder
-// 완전 수정 버전 (함수 누락 해결)
+// SellingForm v3.12 - Module A: Product Detail Builder
+// 함수 누락 해결 + 완전 작동 버전
 // ============================================================
 
 (function() {
@@ -179,20 +179,28 @@
         }
     }
 
-    // ⬇️⬇️⬇️ 필수 함수 추가 ⬇️⬇️⬇️
+    // ⭐⭐⭐ 필수 함수 추가 ⭐⭐⭐
     function checkSectionCompleted(sectionKey, sectionSpec) {
+        if (!State.projectData || !State.projectData.data) return false;
+        
         const sectionData = State.projectData.data[sectionKey];
         if (!sectionData) return false;
         
+        // 필수 항목이 없으면 자동 완료
+        const hasRequiredSlots = checkSectionHasRequired(sectionSpec);
+        if (!hasRequiredSlots) return true;
+        
+        // 모든 필수 항목 체크
         for (const [slotKey, slotSpec] of Object.entries(sectionSpec.slots)) {
             if (slotSpec.required) {
                 const value = sectionData[slotKey];
+                // 빈 값 체크
                 if (!value || (typeof value === 'string' && value.trim() === '')) {
-                    return false;
+                    return false; // 하나라도 비어있으면 미완료
                 }
             }
         }
-        return true;
+        return true; // 모든 필수 항목 채워짐
     }
 
     function checkSectionHasRequired(sectionSpec) {
@@ -201,7 +209,6 @@
         }
         return false;
     }
-    // ⬆️⬆️⬆️ 필수 함수 끝 ⬆️⬆️⬆️
 
     function initUI() {
         const btnSave = document.getElementById('btnSave');
@@ -350,7 +357,7 @@
         State.projectData.data[sectionKey][slotKey] = value;
         State.isModified = true;
         renderPreview();
-        renderSectionButtons();
+        renderSectionButtons(); // 버튼 상태 즉시 업데이트
     }
 
     function renderPreview() {
@@ -384,7 +391,7 @@
             type: 'detail',
             title: title,
             thumbnail: null,
-            data: State.projectData
+             State.projectData
         };
 
         try {
