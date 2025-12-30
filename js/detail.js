@@ -14,49 +14,92 @@
         isModified: false
     };
 
-    const TemplateSpec = {
-        beauty_01: {
-            name: 'Beauty Template 01',
-            sections: {
-                hero: {
-                    name: 'HERO',
-                    icon: '🎯',
-                    slots: {
-                        productName: { type: 'text', label: '제품명', required: true, maxLength: 30 },
-                        mainCopy: { type: 'text', label: '한줄 USP', required: true, maxLength: 50 },
-                        subCopy: { type: 'text', label: '서브 카피', required: true, maxLength: 60 },
-                        mainImage: { type: 'image', label: '메인 이미지', required: true }
-                    }
-                },
-                usp: {
-                    name: 'USP-3',
-                    icon: '⭐',
-                    slots: {
-                        title1: { type: 'text', label: '제목 1', required: true, maxLength: 20 },
-                        desc1: { type: 'textarea', label: '설명 1', required: true, maxLength: 50 },
-                        title2: { type: 'text', label: '제목 2', required: true, maxLength: 20 },
-                        desc2: { type: 'textarea', label: '설명 2', required: true, maxLength: 50 },
-                        title3: { type: 'text', label: '제목 3', required: true, maxLength: 20 },
-                        desc3: { type: 'textarea', label: '설명 3', required: true, maxLength: 50 }
-                    }
-                },
-                price: {
-                    name: 'PRICE',
-                    icon: '💰',
-                    slots: {
-                        priceText: { type: 'textarea', label: '가격 안내', required: false, maxLength: 100 }
-                    }
-                },
-                brand: {
-                    name: 'BRAND',
-                    icon: '🏢',
-                    slots: {
-                        intro1: { type: 'text', label: '브랜드 소개', required: true, maxLength: 50 }
-                    }
+   const TemplateSpec = {
+    beauty_01: {
+        name: 'Beauty Template 01',
+        sections: {
+            hero: {
+                name: 'HERO',
+                icon: '🎯',
+                slots: {
+                    productName: { type: 'text', label: '제품명', required: true, maxLength: 30 },
+                    mainCopy: { type: 'text', label: '한줄 USP', required: true, maxLength: 50 },
+                    subCopy: { type: 'text', label: '서브 카피', required: true, maxLength: 60 },
+                    mainImage: { type: 'image', label: '메인 이미지', required: true }
+                }
+            },
+            usp: {
+                name: 'USP-3',
+                icon: '⭐',
+                slots: {
+                    title1: { type: 'text', label: '제목 1', required: true, maxLength: 20 },
+                    desc1: { type: 'textarea', label: '설명 1', required: true, maxLength: 50 },
+                    title2: { type: 'text', label: '제목 2', required: true, maxLength: 20 },
+                    desc2: { type: 'textarea', label: '설명 2', required: true, maxLength: 50 },
+                    title3: { type: 'text', label: '제목 3', required: true, maxLength: 20 },
+                    desc3: { type: 'textarea', label: '설명 3', required: true, maxLength: 50 }
+                }
+            },
+            price: {
+                name: 'PRICE',
+                icon: '💰',
+                slots: {
+                    priceText: { type: 'textarea', label: '가격 안내', required: false, maxLength: 100 }
+                }
+            },
+            proof: {
+                name: 'PROOF',
+                icon: '✅',
+                slots: {
+                    review1: { type: 'text', label: '후기 요약 1', required: false, maxLength: 40 },
+                    review2: { type: 'text', label: '후기 요약 2', required: false, maxLength: 40 },
+                    certification: { type: 'text', label: '인증/테스트', required: false, maxLength: 50 }
+                }
+            },
+            detail: {
+                name: 'DETAIL',
+                icon: '📋',
+                slots: {
+                    detailImage: { type: 'image', label: '상세 이미지', required: false },
+                    detailText: { type: 'textarea', label: '설명 텍스트', required: false, maxLength: 200 }
+                }
+            },
+            howto: {
+                name: 'HOWTO',
+                icon: '📝',
+                slots: {
+                    step1Title: { type: 'text', label: '1단계', required: true, maxLength: 20 },
+                    step2Title: { type: 'text', label: '2단계', required: true, maxLength: 20 },
+                    step3Title: { type: 'text', label: '3단계', required: true, maxLength: 20 }
+                }
+            },
+            faq: {
+                name: 'FAQ',
+                icon: '❓',
+                slots: {
+                    q1: { type: 'text', label: '질문 1', required: false, maxLength: 50 },
+                    a1: { type: 'textarea', label: '답변 1', required: false, maxLength: 100 }
+                }
+            },
+            shipping: {
+                name: '배송·CS',
+                icon: '🚚',
+                slots: {
+                    shipping: { type: 'textarea', label: '배송 안내', required: false, maxLength: 100 }
+                }
+            },
+            brand: {
+                name: 'BRAND',
+                icon: '🏢',
+                slots: {
+                    intro1: { type: 'text', label: '브랜드 소개', required: true, maxLength: 50 },
+                    brandImage: { type: 'image', label: '대표 이미지', required: true }
                 }
             }
         }
-    };
+    }
+};
+
 
     function createEmptyProject() {
         const template = TemplateSpec[State.currentTemplate];
