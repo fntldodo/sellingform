@@ -387,12 +387,12 @@
     async function saveProject() {
         const title = State.projectData.data.hero?.productName || '제목 없음';
         
-        const itemData = {
-            type: 'detail',
-            title: title,
-            thumbnail: null,
-             State.projectData
-        };
+const itemData = {
+    type: 'detail',
+    title: title,
+    thumbnail: null,
+    data: State.projectData
+};
 
         try {
             if (State.projectId) {
