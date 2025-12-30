@@ -195,8 +195,9 @@ function extractImages(data) {
                 images.push({
                     name: name,
                     ext: ext,
-                     value
+                    data: value
                 });
+
             }
         }
     }
