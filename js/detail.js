@@ -21,6 +21,7 @@
             sections: {
                 hero: {
                     name: '히어로',
+                    nameEn: 'HERO',
                     icon: '🎯',
                     slots: {
                         productName: { type: 'text', label: '제품명', required: true, maxLength: 30 },
@@ -31,6 +32,7 @@
                 },
                 usp: {
                     name: '핵심 특징',
+                    nameEn: 'USP-3',
                     icon: '⭐',
                     slots: {
                         title1: { type: 'text', label: '제목 1', required: true, maxLength: 20 },
@@ -43,6 +45,7 @@
                 },
                 price: {
                     name: '가격',
+                    nameEn: 'PRICE',
                     icon: '💰',
                     slots: {
                         priceText: { type: 'textarea', label: '가격 안내', required: false, maxLength: 100 }
@@ -50,6 +53,7 @@
                 },
                 proof: {
                     name: '증거·후기',
+                     nameEn: 'PROOF',
                     icon: '✅',
                     slots: {
                         review1: { type: 'text', label: '후기 요약 1', required: false, maxLength: 40 },
@@ -59,6 +63,7 @@
                 },
                 detail: {
                     name: '상세 설명',
+                    nameEn: 'DETAIL',
                     icon: '📋',
                     slots: {
                         detailImage: { type: 'image', label: '상세 이미지', required: false },
@@ -67,6 +72,7 @@
                 },
                 howto: {
                     name: '사용 방법',
+                    nameEn: 'HOWTO',
                     icon: '📝',
                     slots: {
                         step1Title: { type: 'text', label: '1단계', required: true, maxLength: 20 },
@@ -76,6 +82,7 @@
                 },
                 faq: {
                     name: '자주 묻는 질문',
+                    nameEn: 'FAQ',
                     icon: '❓',
                     slots: {
                         q1: { type: 'text', label: '질문 1', required: false, maxLength: 50 },
@@ -84,6 +91,7 @@
                 },
                 shipping: {
                     name: '배송·교환',
+                     nameEn: 'SHIPPING',
                     icon: '🚚',
                     slots: {
                         shipping: { type: 'textarea', label: '배송 안내', required: false, maxLength: 100 }
@@ -91,6 +99,7 @@
                 },
                 brand: {
                     name: '브랜드 소개',
+                    nameEn: 'BRAND',
                     icon: '🏢',
                     slots: {
                         intro1: { type: 'text', label: '브랜드 소개', required: true, maxLength: 50 },
@@ -144,41 +153,45 @@
         renderPreview();
     });
 
-    function renderSectionButtons() {
-        const template = TemplateSpec[State.currentTemplate];
-        const sectionNav = document.querySelector('.section-nav');
+function renderSectionButtons() {
+    const template = TemplateSpec[State.currentTemplate];
+    const sectionNav = document.querySelector('.section-nav');
+    
+    if (!sectionNav) return;
+    
+    sectionNav.innerHTML = '';
+    
+    for (const [sectionKey, sectionSpec] of Object.entries(template.sections)) {
+        const btn = document.createElement('button');
+        btn.className = 'section-btn';
+        btn.dataset.section = sectionKey;
         
-        if (!sectionNav) return;
+        const isCompleted = checkSectionCompleted(sectionKey, sectionSpec);
+        const hasRequired = checkSectionHasRequired(sectionSpec);
         
-        sectionNav.innerHTML = '';
-        
-        for (const [sectionKey, sectionSpec] of Object.entries(template.sections)) {
-            const btn = document.createElement('button');
-            btn.className = 'section-btn';
-            btn.dataset.section = sectionKey;
-            
-            const isCompleted = checkSectionCompleted(sectionKey, sectionSpec);
-            const hasRequired = checkSectionHasRequired(sectionSpec);
-            
-            let statusIcon = '';
-            if (isCompleted) {
-                statusIcon = ' ✓';
-                btn.classList.add('completed');
-            } else if (hasRequired) {
-                statusIcon = ' !';
-                btn.classList.add('required');
-            }
-            
-            btn.innerHTML = `${sectionSpec.icon} ${sectionSpec.name}${statusIcon}`;
-            
-            if (sectionKey === State.currentSection) {
-                btn.classList.add('active');
-            }
-            
-            btn.addEventListener('click', () => selectSection(sectionKey));
-            sectionNav.appendChild(btn);
+        let statusIcon = '';
+        if (isCompleted) {
+            statusIcon = ' ✓';
+            btn.classList.add('completed');
+        } else if (hasRequired) {
+            statusIcon = ' !';
+            btn.classList.add('required');
         }
+        
+        // ⬇️⬇️⬇️ 여기 수정 ⬇️⬇️⬇️
+        const displayName = State.currentLang === 'ko' ? sectionSpec.name : sectionSpec.nameEn;
+        btn.innerHTML = `${sectionSpec.icon} ${displayName}${statusIcon}`;
+        // ⬆️⬆️⬆️ 여기까지 수정 ⬆️⬆️⬆️
+        
+        if (sectionKey === State.currentSection) {
+            btn.classList.add('active');
+        }
+        
+        btn.addEventListener('click', () => selectSection(sectionKey));
+        sectionNav.appendChild(btn);
     }
+}
+
 
     // ⭐⭐⭐ 필수 함수 추가 ⭐⭐⭐
     function checkSectionCompleted(sectionKey, sectionSpec) {
@@ -216,6 +229,14 @@ if (!hasRequiredSlots) return false;  // ✅ 필수 없으면 표시 안 함
 
         const btnGenerateAi = document.getElementById('btnGenerateAi');
         if (btnGenerateAi) btnGenerateAi.addEventListener('click', generateAICopy);
+        
+        const btnToggleLang = document.getElementById('btnToggleLang');
+        if (btnToggleLang) {
+        btnToggleLang.addEventListener('click', () => {
+            State.currentLang = State.currentLang === 'ko' ? 'en' : 'ko';
+            renderSectionButtons();
+        });
+    }
     }
 
     function selectSection(sectionKey) {
