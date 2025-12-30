@@ -804,10 +804,12 @@ function checkSectionHasRequired(sectionSpec) {
     // ============================================================
     
     function updateSlotData(sectionKey, slotKey, value) {
-        State.projectData.data[sectionKey][slotKey] = value;
-        State.isModified = true;
-        renderPreview();
-    }
+    State.projectData.data[sectionKey][slotKey] = value;
+    State.isModified = true;
+    renderPreview();
+    renderSectionButtons(); // 버튼 상태 업데이트
+}
+
 
     // ============================================================
     // 미리보기
