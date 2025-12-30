@@ -6,14 +6,14 @@
 (function() {
     'use strict';
 
-    const State = {
-        currentTemplate: 'beauty_01',
-        currentSection: 'hero',
-        projectData: null,
-        projectId: null,
-        isModified: false,
-         currentLang: 'ko'
-    };
+const State = {
+    currentTemplate: 'beauty_01',
+    currentSection: 'hero',
+    projectData: null,
+    projectId: null,
+    isModified: false,  // ⬅️ 콤마 필수!
+    currentLang: 'ko'
+};
 
     const TemplateSpec = {
         beauty_01: {
