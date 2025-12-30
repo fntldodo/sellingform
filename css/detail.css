@@ -2,6 +2,120 @@
    Module A: Product Detail Builder 전용 스타일
    ============================================================ */
 
+/* ========================================
+   헤더 스타일
+======================================== */
+
+.header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 70px;
+    background: white;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 24px;
+    z-index: 100;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.btn-back {
+    padding: 8px 16px;
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #333;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.btn-back:hover {
+    background: #e2e8f0;
+}
+
+.page-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1a202c;
+    margin: 0;
+}
+
+.btn-save,
+.btn-export {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-save {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-export {
+    background: white;
+    border: 2px solid #667eea;
+    color: #667eea;
+}
+
+.btn-export:hover {
+    background: #667eea;
+    color: white;
+}
+
+.btn-lang {
+    padding: 10px 16px;
+    background: white;
+    border: 2px solid #667eea;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #667eea;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-lang:hover {
+    background: #667eea;
+    color: white;
+}
+
+.btn-lang.active-ko {
+    background: #667eea;
+    color: white;
+}
+
+.btn-lang.active-en {
+    background: #764ba2;
+    color: white;
+}
+
+
 .detail-container {
     min-height: 100vh;
     background: var(--gray-50);
