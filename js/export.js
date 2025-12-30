@@ -756,8 +756,9 @@ body {
                 images.push({
                     name: name,
                     ext: ext,
-                    data: value
+                    data: value  // '' 로 수정
                 });
+
                 }
             }
         }
