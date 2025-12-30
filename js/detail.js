@@ -231,25 +231,25 @@ if (!hasRequiredSlots) return false;  // ✅ 이미 올바름
         if (btnGenerateAi) btnGenerateAi.addEventListener('click', generateAICopy);
         
     const btnToggleLang = document.getElementById('btnToggleLang');
-    if (btnToggleLang) {
-        btnToggleLang.addEventListener('click', () => {
-            State.currentLang = State.currentLang === 'ko' ? 'en' : 'ko';
-            
-            // 버튼 색상 변경
-            btnToggleLang.classList.remove('active-ko', 'active-en');
-            if (State.currentLang === 'ko') {
-                btnToggleLang.classList.add('active-ko');
-            } else {
-                btnToggleLang.classList.add('active-en');
-            }
-            
-            renderSectionButtons();
-        });
+if (btnToggleLang) {
+    btnToggleLang.addEventListener('click', () => {
+        State.currentLang = State.currentLang === 'ko' ? 'en' : 'ko';
         
-        // 초기 상태 설정
-        btnToggleLang.classList.add('active-ko');
-    }
-    }
+        // 버튼 색상 변경
+        btnToggleLang.classList.remove('active-ko', 'active-en');
+        if (State.currentLang === 'ko') {
+            btnToggleLang.classList.add('active-ko');
+        } else {
+            btnToggleLang.classList.add('active-en');
+        }
+        
+        renderSectionButtons();
+    });
+    
+    // 초기 상태 설정
+    btnToggleLang.classList.add('active-ko');
+}
+
 
     function selectSection(sectionKey) {
         State.currentSection = sectionKey;
