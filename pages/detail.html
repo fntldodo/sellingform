@@ -337,6 +337,62 @@
     .btn-primary:hover {
         transform: scale(1.02);
     }
+
+    /* 섹션 버튼 상태별 스타일 */
+.section-btn {
+    padding: 8px 12px;
+    border: 2px solid #e2e8f0;
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s;
+    position: relative;
+}
+
+/* 필수 항목 있는 섹션 (미작성) */
+.section-btn.required {
+    border-color: #fbbf24;
+    background: #fffbeb;
+}
+
+.section-btn.required:hover {
+    border-color: #f59e0b;
+    background: #fef3c7;
+}
+
+/* 작성 완료된 섹션 */
+.section-btn.completed {
+    border-color: #10b981;
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.section-btn.completed:hover {
+    border-color: #059669;
+    background: #a7f3d0;
+}
+
+/* 활성화된 버튼 */
+.section-btn.active {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+/* 활성화된 버튼이 완료 상태일 때 */
+.section-btn.active.completed {
+    background: #10b981;
+    border-color: #10b981;
+}
+
+/* 활성화된 버튼이 필수 상태일 때 */
+.section-btn.active.required {
+    background: #f59e0b;
+    border-color: #f59e0b;
+}
+
 </style>
 
 </head>
