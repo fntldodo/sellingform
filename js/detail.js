@@ -1,6 +1,6 @@
 // ============================================================
-// SellingForm v3.13 - Module A: Product Detail Builder
-// 최종 안정 버전 (함수 중복 제거 + 문법 오류 수정)
+// SellingForm v3.12 - Module A: Product Detail Builder
+// 함수 누락 해결 + 완전 작동 버전
 // ============================================================
 
 (function() {
@@ -179,24 +179,28 @@
         }
     }
 
+    // ⭐⭐⭐ 필수 함수 추가 ⭐⭐⭐
     function checkSectionCompleted(sectionKey, sectionSpec) {
         if (!State.projectData || !State.projectData.data) return false;
         
         const sectionData = State.projectData.data[sectionKey];
         if (!sectionData) return false;
         
+        // 필수 항목이 없으면 자동 완료
         const hasRequiredSlots = checkSectionHasRequired(sectionSpec);
-        if (!hasRequiredSlots) return false;
+        if (!hasRequiredSlots) return true;
         
+        // 모든 필수 항목 체크
         for (const [slotKey, slotSpec] of Object.entries(sectionSpec.slots)) {
             if (slotSpec.required) {
                 const value = sectionData[slotKey];
+                // 빈 값 체크
                 if (!value || (typeof value === 'string' && value.trim() === '')) {
-                    return false;
+                    return false; // 하나라도 비어있으면 미완료
                 }
             }
         }
-        return true;
+        return true; // 모든 필수 항목 채워짐
     }
 
     function checkSectionHasRequired(sectionSpec) {
@@ -353,7 +357,7 @@
         State.projectData.data[sectionKey][slotKey] = value;
         State.isModified = true;
         renderPreview();
-        renderSectionButtons();
+        renderSectionButtons(); // 버튼 상태 즉시 업데이트
     }
 
     function renderPreview() {
@@ -387,7 +391,7 @@
             type: 'detail',
             title: title,
             thumbnail: null,
-             State.projectData  // ✅ 수정됨!
+             State.projectData
         };
 
         try {
