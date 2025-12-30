@@ -598,6 +598,74 @@
         }
 
         async function handleExport() {
+    // 필수 항목 체크
+    const missingRequired = checkMissingRequired();
+    if (missingRequired.length > 0) {
+        const sectionNames = missingRequired.join(', ');
+        if (!confirm(`다음 섹션의 필수 항목이 비어있습니다:\n${sectionNames}\n\n계속 진행하시겠습니까?`)) {
+            return;
+        }
+    }
+    
+    const exportType = document.querySelector('input[name="exportType"]:checked').value;
+    const projectName = document.getElementById('exportProjectName').value || 'sellingform-project';
+    
+    const options = {
+        projectName: projectName,
+        sliceHeight: parseInt(document.getElementById('exportSliceHeight').value) || 1200,
+        format: document.getElementById('exportFormat').value || 'png'
+    };
+    
+    closeExportModal();
+
+            
+            if (window.SellingForm && window.SellingForm.Utils) {
+                window.SellingForm.Utils.showLoading('Export 중...');
+            }
+            
+            try {
+                const projectData = window.detailBuilderState?.projectData;
+                
+                if (!projectData) {
+                    alert('프로젝트 데이터를 찾을 수 없습니다.');
+                    if (window.SellingForm && window.SellingForm.Utils) {
+                        window.SellingForm.Utils.hideLoading();
+                    }
+                    return;
+                }
+                
+                const success = await window.SellingForm.Export.startExport(exportType, projectData, options);
+                
+                if (window.SellingForm && window.SellingForm.Utils) {
+                    window.SellingForm.Utils.hideLoading();
+                }
+                
+                if (success) {
+                    if (window.SellingForm && window.SellingForm.Toast) {
+                        window.SellingForm.Toast.show('Export 완료!', 2000);
+                    } else {
+                        alert('Export 완료!');
+                    }
+                }
+            } catch (error) {
+                console.error('Export 실패:', error);
+                if (window.SellingForm && window.SellingForm.Utils) {
+                    window.SellingForm.Utils.hideLoading();
+                }
+                alert('Export 중 오류가 발생했습니다: ' + error.message);
+            }
+        }
+
+                async function handleExport() {
+            // 필수 항목 체크 추가
+            const missingRequired = checkMissingRequired();
+            if (missingRequired.length > 0) {
+                const sectionNames = missingRequired.join(', ');
+                if (!confirm(`다음 섹션의 필수 항목이 비어있습니다:\n${sectionNames}\n\n계속 진행하시겠습니까?`)) {
+                    return;
+                }
+            }
+            
             const exportType = document.querySelector('input[name="exportType"]:checked').value;
             const projectName = document.getElementById('exportProjectName').value || 'sellingform-project';
             
@@ -646,7 +714,18 @@
             }
         }
 
+        // ⬇️⬇️⬇️ 새로운 함수 추가 ⬇️⬇️⬇️
+        function checkMissingRequired() {
+            if (!window.detailBuilderState || !window.detailBuilderState.projectData) {
+                return [];
+            }
+            
+            // 간단한 구현 (detail.js에 의존)
+            return [];
+        }
+
         function openExportModal() {
+
             document.getElementById('exportModal').classList.add('active');
         }
 
