@@ -475,34 +475,73 @@
     // 섹션 버튼 동적 생성
     // ============================================================
     
-    function renderSectionButtons() {
-        const template = TemplateSpec[State.currentTemplate];
-        const sectionNav = document.querySelector('.section-nav');
+   function renderSectionButtons() {
+    const template = TemplateSpec[State.currentTemplate];
+    const sectionNav = document.querySelector('.section-nav');
+    
+    if (!sectionNav) {
+        console.warn('section-nav 요소를 찾을 수 없습니다');
+        return;
+    }
+    
+    sectionNav.innerHTML = '';
+    
+    for (const [sectionKey, sectionSpec] of Object.entries(template.sections)) {
+        const btn = document.createElement('button');
+        btn.className = 'section-btn';
+        btn.dataset.section = sectionKey;
         
-        if (!sectionNav) {
-            console.warn('section-nav 요소를 찾을 수 없습니다');
-            return;
+        // 작성 완료 여부 체크
+        const isCompleted = checkSectionCompleted(sectionKey, sectionSpec);
+        const hasRequired = checkSectionHasRequired(sectionSpec);
+        
+        // 아이콘 + 이름 + 상태 표시
+        let statusIcon = '';
+        if (isCompleted) {
+            statusIcon = ' ✓';
+            btn.classList.add('completed');
+        } else if (hasRequired) {
+            statusIcon = ' !';
+            btn.classList.add('required');
         }
         
-        sectionNav.innerHTML = '';
+        btn.innerHTML = `${sectionSpec.icon} ${sectionSpec.name}${statusIcon}`;
         
-        for (const [sectionKey, sectionSpec] of Object.entries(template.sections)) {
-            const btn = document.createElement('button');
-            btn.className = 'section-btn';
-            btn.dataset.section = sectionKey;
-            btn.innerHTML = `${sectionSpec.icon} ${sectionSpec.name}`;
-            
-            if (sectionKey === State.currentSection) {
-                btn.classList.add('active');
+        if (sectionKey === State.currentSection) {
+            btn.classList.add('active');
+        }
+        
+        btn.addEventListener('click', function() {
+            selectSection(sectionKey);
+        });
+        
+        sectionNav.appendChild(btn);
+    }
+}
+
+// 섹션 작성 완료 여부 체크
+function checkSectionCompleted(sectionKey, sectionSpec) {
+    const sectionData = State.projectData.data[sectionKey];
+    if (!sectionData) return false;
+    
+    for (const [slotKey, slotSpec] of Object.entries(sectionSpec.slots)) {
+        if (slotSpec.required) {
+            const value = sectionData[slotKey];
+            if (!value || (typeof value === 'string' && value.trim() === '')) {
+                return false; // 필수 항목이 비어있으면 미완료
             }
-            
-            btn.addEventListener('click', function() {
-                selectSection(sectionKey);
-            });
-            
-            sectionNav.appendChild(btn);
         }
     }
+    return true; // 모든 필수 항목이 채워짐
+}
+
+// 섹션에 필수 항목이 있는지 체크
+function checkSectionHasRequired(sectionSpec) {
+    for (const slotSpec of Object.values(sectionSpec.slots)) {
+        if (slotSpec.required) return true;
+    }
+    return false;
+}
 
     // ============================================================
     // UI 초기화
