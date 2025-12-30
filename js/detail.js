@@ -180,28 +180,7 @@
         }
     }
 
-    function checkSectionCompleted(sectionKey, sectionSpec) {
-        const sectionData = State.projectData.data[sectionKey];
-        if (!sectionData) return false;
-        
-        for (const [slotKey, slotSpec] of Object.entries(sectionSpec.slots)) {
-            if (slotSpec.required) {
-                const value = sectionData[slotKey];
-                if (!value || (typeof value === 'string' && value.trim() === '')) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    function checkSectionHasRequired(sectionSpec) {
-        for (const slotSpec of Object.values(sectionSpec.slots)) {
-            if (slotSpec.required) return true;
-        }
-        return false;
-    }
-
+  
     function initUI() {
         const btnSave = document.getElementById('btnSave');
         if (btnSave) btnSave.addEventListener('click', saveProject);
