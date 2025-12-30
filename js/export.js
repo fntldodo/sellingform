@@ -1,14 +1,14 @@
 (function() {
     'use strict';
 
-    const scripts = [
+    var scripts = [
         '[cdnjs.cloudflare.com](https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js&#39;)
         '[cdnjs.cloudflare.com](https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js&#39;)
     ];
 
-    let scriptsLoaded = 0;
+    var scriptsLoaded = 0;
     scripts.forEach(function(src) {
-        const script = document.createElement('script');
+        var script = document.createElement('script');
         script.src = src;
         script.onload = function() {
             scriptsLoaded++;
@@ -26,112 +26,127 @@
         startExport: startExport
     };
 
-    async function startExport(exportType, projectData, options) {
+    function startExport(exportType, projectData, options) {
         if (!window.JSZip || !window.saveAs) {
             alert('Export 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.');
-            return false;
+            return Promise.resolve(false);
         }
 
         try {
             if (exportType === 'image') {
-                const canvas = document.getElementById('previewCanvas');
-                return await exportToZip(canvas, options.projectName, {
+                var canvas = document.getElementById('previewCanvas');
+                return exportToZip(canvas, options.projectName, {
                     sliceHeight: options.sliceHeight || 1200,
                     format: options.format || 'png'
                 });
             } else if (exportType === 'html') {
-                return await exportAsHTML(projectData, options.projectName);
+                return exportAsHTML(projectData, options.projectName);
             } else if (exportType === 'both') {
-                const canvas = document.getElementById('previewCanvas');
-                await exportToZip(canvas, options.projectName + '_images', {
+                var canvas = document.getElementById('previewCanvas');
+                return exportToZip(canvas, options.projectName + '_images', {
                     sliceHeight: options.sliceHeight || 1200,
                     format: options.format || 'png'
+                }).then(function() {
+                    return exportAsHTML(projectData, options.projectName + '_html');
                 });
-                await exportAsHTML(projectData, options.projectName + '_html');
-                return true;
             }
         } catch (error) {
             console.error('Export 실패:', error);
             alert('Export 중 오류가 발생했습니다: ' + error.message);
-            return false;
+            return Promise.resolve(false);
         }
     }
 
-    async function exportToZip(canvas, projectName, options) {
-        options = options || {};
-        const sliceHeight = options.sliceHeight || 1200;
-        const format = options.format || 'png';
-        const quality = options.quality || 0.9;
+    function exportToZip(canvas, projectName, options) {
+        return new Promise(function(resolve) {
+            options = options || {};
+            var sliceHeight = options.sliceHeight || 1200;
+            var format = options.format || 'png';
+            var quality = options.quality || 0.9;
 
-        if (!canvas) {
-            alert('캔버스를 찾을 수 없습니다.');
-            return false;
-        }
-
-        const zip = new JSZip();
-        const totalHeight = canvas.height;
-        const width = canvas.width;
-        const sliceCount = Math.ceil(totalHeight / sliceHeight);
-
-        for (let i = 0; i < sliceCount; i++) {
-            const sliceCanvas = document.createElement('canvas');
-            sliceCanvas.width = width;
-            const currentSliceHeight = Math.min(sliceHeight, totalHeight - (i * sliceHeight));
-            sliceCanvas.height = currentSliceHeight;
-
-            const ctx = sliceCanvas.getContext('2d');
-            ctx.drawImage(canvas, 0, i * sliceHeight, width, currentSliceHeight, 0, 0, width, currentSliceHeight);
-
-            const blob = await new Promise(function(resolve) {
-                sliceCanvas.toBlob(resolve, 'image/' + format, quality);
-            });
-
-            const fileName = 'slice_' + String(i + 1).padStart(2, '0') + '.' + format;
-            zip.file(fileName, blob);
-        }
-
-        const zipBlob = await zip.generateAsync({ type: 'blob' });
-        saveAs(zipBlob, projectName + '.zip');
-        return true;
-    }
-
-    async function exportAsHTML(projectData, projectName) {
-        if (!projectData || !projectData.data) {
-            alert('프로젝트 데이터가 없습니다.');
-            return false;
-        }
-
-        const zip = new JSZip();
-        const html = generateHTML(projectData);
-        zip.file('index.html', html);
-        
-        const css = generateCSS(projectData.template);
-        zip.file('style.css', css);
-        
-        const images = extractImages(projectData.data);
-        if (images.length > 0) {
-            const imgFolder = zip.folder('images');
-            for (let i = 0; i < images.length; i++) {
-                const img = images[i];
-                const blob = base64ToBlob(img.data);
-                imgFolder.file(img.name + '.' + img.ext, blob);
+            if (!canvas) {
+                alert('캔버스를 찾을 수 없습니다.');
+                resolve(false);
+                return;
             }
-        }
-        
-        const readme = generateReadme(projectData);
-        zip.file('README.txt', readme);
-        
-        const zipBlob = await zip.generateAsync({ type: 'blob' });
-        saveAs(zipBlob, projectName + '.zip');
-        return true;
+
+            var zip = new JSZip();
+            var totalHeight = canvas.height;
+            var width = canvas.width;
+            var sliceCount = Math.ceil(totalHeight / sliceHeight);
+            var promises = [];
+
+            for (var i = 0; i < sliceCount; i++) {
+                (function(index) {
+                    var sliceCanvas = document.createElement('canvas');
+                    sliceCanvas.width = width;
+                    var currentSliceHeight = Math.min(sliceHeight, totalHeight - (index * sliceHeight));
+                    sliceCanvas.height = currentSliceHeight;
+
+                    var ctx = sliceCanvas.getContext('2d');
+                    ctx.drawImage(canvas, 0, index * sliceHeight, width, currentSliceHeight, 0, 0, width, currentSliceHeight);
+
+                    var promise = new Promise(function(res) {
+                        sliceCanvas.toBlob(function(blob) {
+                            var fileName = 'slice_' + String(index + 1).padStart(2, '0') + '.' + format;
+                            zip.file(fileName, blob);
+                            res();
+                        }, 'image/' + format, quality);
+                    });
+                    promises.push(promise);
+                })(i);
+            }
+
+            Promise.all(promises).then(function() {
+                return zip.generateAsync({ type: 'blob' });
+            }).then(function(zipBlob) {
+                saveAs(zipBlob, projectName + '.zip');
+                resolve(true);
+            });
+        });
+    }
+
+    function exportAsHTML(projectData, projectName) {
+        return new Promise(function(resolve) {
+            if (!projectData || !projectData.data) {
+                alert('프로젝트 데이터가 없습니다.');
+                resolve(false);
+                return;
+            }
+
+            var zip = new JSZip();
+            var html = generateHTML(projectData);
+            zip.file('index.html', html);
+            
+            var css = generateCSS(projectData.template);
+            zip.file('style.css', css);
+            
+            var images = extractImages(projectData.data);
+            if (images.length > 0) {
+                var imgFolder = zip.folder('images');
+                for (var i = 0; i < images.length; i++) {
+                    var img = images[i];
+                    var blob = base64ToBlob(img.data);
+                    imgFolder.file(img.name + '.' + img.ext, blob);
+                }
+            }
+            
+            var readme = generateReadme(projectData);
+            zip.file('README.txt', readme);
+            
+            zip.generateAsync({ type: 'blob' }).then(function(zipBlob) {
+                saveAs(zipBlob, projectName + '.zip');
+                resolve(true);
+            });
+        });
     }
 
     function generateHTML(projectData) {
-        const data = projectData.data;
-        const productName = (data.hero && data.hero.productName) || '상품명';
-        let html = '<!DOCTYPE html>\n<html lang="ko">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<title>' + productName + '</title>\n<link rel="stylesheet" href="style.css">\n</head>\n<body>\n<div class="detail-page-container">\n';
-        for (const sectionKey in data) {
-            const sectionData = data[sectionKey];
+        var data = projectData.data;
+        var productName = (data.hero && data.hero.productName) || '상품명';
+        var html = '<!DOCTYPE html>\n<html lang="ko">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<title>' + productName + '</title>\n<link rel="stylesheet" href="style.css">\n</head>\n<body>\n<div class="detail-page-container">\n';
+        for (var sectionKey in data) {
+            var sectionData = data[sectionKey];
             if (sectionData && Object.keys(sectionData).length > 0) {
                 html += renderSectionHTML(sectionKey, sectionData);
             }
@@ -149,19 +164,19 @@
     }
 
     function extractImages(data) {
-        const images = [];
-        let imageCounter = 0;
-        for (const sectionKey in data) {
-            const sectionData = data[sectionKey];
-            for (const slotKey in sectionData) {
-                const value = sectionData[slotKey];
-                if (value && typeof value === 'string' && value.startsWith('image/')) {
-                    const ext = value.split(';')[0].split('/')[1];
-                    const name = generateImageName(sectionKey, slotKey, imageCounter++);
+        var images = [];
+        var imageCounter = 0;
+        for (var sectionKey in data) {
+            var sectionData = data[sectionKey];
+            for (var slotKey in sectionData) {
+                var value = sectionData[slotKey];
+                if (value && typeof value === 'string' && value.startsWith('data:image/')) {
+                    var ext = value.split(';')[0].split('/')[1];
+                    var name = generateImageName(sectionKey, slotKey, imageCounter++);
                     images.push({
                         name: name,
                         ext: ext,
-                        data: value
+                         value
                     });
                 }
             }
@@ -170,7 +185,7 @@
     }
 
     function generateImageName(section, slot, index) {
-        const nameMap = {
+        var nameMap = {
             'hero_mainImage': 'hero_main',
             'hero_gallery1': 'gallery1',
             'hero_gallery2': 'gallery2',
@@ -182,24 +197,24 @@
             'brand_logo': 'brand_logo',
             'brand_brandImage': 'brand_main'
         };
-        const key = section + '_' + slot;
+        var key = section + '_' + slot;
         return nameMap[key] || 'image_' + index;
     }
 
     function base64ToBlob(base64) {
-        const parts = base64.split(';base64,');
-        const contentType = parts[0].split(':')[1];
-        const raw = window.atob(parts[1]);
-        const rawLength = raw.length;
-        const uInt8Array = new Uint8Array(rawLength);
-        for (let i = 0; i < rawLength; i++) {
+        var parts = base64.split(';base64,');
+        var contentType = parts[0].split(':')[1];
+        var raw = window.atob(parts[1]);
+        var rawLength = raw.length;
+        var uInt8Array = new Uint8Array(rawLength);
+        for (var i = 0; i < rawLength; i++) {
             uInt8Array[i] = raw.charCodeAt(i);
         }
         return new Blob([uInt8Array], { type: contentType });
     }
 
     function generateReadme(projectData) {
-        const productName = (projectData.data.hero && projectData.data.hero.productName) || '제목 없음';
+        var productName = (projectData.data.hero && projectData.data.hero.productName) || '제목 없음';
         return 'SellingForm Export\nProject: ' + productName + '\nTemplate: ' + (projectData.template || 'beauty_01') + '\nDate: ' + new Date().toLocaleString('ko-KR');
     }
 
