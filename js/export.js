@@ -12,6 +12,7 @@
         '[cdnjs.cloudflare.com](https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js&#39;)
     ];
 
+
     let scriptsLoaded = 0;
     scripts.forEach(src => {
         const script = document.createElement('script');
