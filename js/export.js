@@ -7,10 +7,10 @@
     ];
 
     let scriptsLoaded = 0;
-    scripts.forEach(src => {
+    scripts.forEach(function(src) {
         const script = document.createElement('script');
         script.src = src;
-        script.onload = () => {
+        script.onload = function() {
             scriptsLoaded++;
             if (scriptsLoaded === scripts.length) {
                 console.log('Export 라이브러리 로드 완료');
@@ -82,7 +82,7 @@
             const ctx = sliceCanvas.getContext('2d');
             ctx.drawImage(canvas, 0, i * sliceHeight, width, currentSliceHeight, 0, 0, width, currentSliceHeight);
 
-            const blob = await new Promise(resolve => {
+            const blob = await new Promise(function(resolve) {
                 sliceCanvas.toBlob(resolve, 'image/' + format, quality);
             });
 
@@ -145,7 +145,7 @@
     }
 
     function generateCSS(templateId) {
-        return '/* Generated CSS for ' + (templateId || 'default') + ' */\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: sans-serif; }';
+        return '* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: sans-serif; }';
     }
 
     function extractImages(data) {
@@ -155,10 +155,14 @@
             const sectionData = data[sectionKey];
             for (const slotKey in sectionData) {
                 const value = sectionData[slotKey];
-                if (value && typeof value === 'string' && value.startsWith('data:image/')) {
+                if (value && typeof value === 'string' && value.startsWith('image/')) {
                     const ext = value.split(';')[0].split('/')[1];
                     const name = generateImageName(sectionKey, slotKey, imageCounter++);
-                    images.push({ name: name, ext: ext,  value });
+                    images.push({
+                        name: name,
+                        ext: ext,
+                        data: value
+                    });
                 }
             }
         }
