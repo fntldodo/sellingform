@@ -8,10 +8,9 @@
 
     // CDN 라이브러리 로드
     const scripts = [
-        '[cdnjs.cloudflare.com](https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js&#39;)
-        '[cdnjs.cloudflare.com](https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js&#39;)
+    '[cdnjs.cloudflare.com](https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js&#39;)
+    '[cdnjs.cloudflare.com](https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js&#39;)
     ];
-
     let scriptsLoaded = 0;
     scripts.forEach(src => {
         const script = document.createElement('script');
@@ -752,11 +751,12 @@ body {
                     // Base64 이미지 감지
                     const ext = value.split(';')[0].split('/')[1]; // png, jpg, etc
                     const name = generateImageName(sectionKey, slotKey, imageCounter++);
-                    images.push({
-                        name: name,
-                        ext: ext,
-                         value
-                    });
+                // ✅ 수정
+                images.push({
+                    name: name,
+                    ext: ext,
+                    data: value
+                });
                 }
             }
         }
