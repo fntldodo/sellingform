@@ -12,6 +12,7 @@
         projectData: null,
         projectId: null,
         isModified: false
+         currentLang: 'ko'
     };
 
     const TemplateSpec = {
