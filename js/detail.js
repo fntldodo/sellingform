@@ -1,484 +1,688 @@
 // ============================================================
-// SellingForm v3.12 - Module A: Product Detail Builder
-// 함수 누락 해결 + 완전 작동 버전
+// SellingForm - Detail Page Editor
+// - 섹션/슬롯 편집 UI
+// - 미리보기 렌더
+// - 저장(IndexedDB)
+// - Export 연동
 // ============================================================
 
-(function() {
-    'use strict';
+(function () {
+  "use strict";
 
-const State = {
-    currentTemplate: 'beauty_01',
-    currentSection: 'hero',
-    projectData: null,
-    projectId: null,
-    isModified: false,
-    currentLang: 'ko'
-};
+  /* ------------------------------
+   * Constants & State
+   * ------------------------------ */
+  const VERSION = "2025.12.31";
+  const QS = new URLSearchParams(location.search);
+  const PROJECT_ID = QS.get("project") || "default_project";
 
-    const TemplateSpec = {
-        beauty_01: {
-            name: 'Beauty Template 01',
-            sections: {
-                hero: {
-                    name: '히어로',
-                    nameEn: 'HERO',
-                    icon: '🎯',
-                    slots: {
-                        productName: { type: 'text', label: '제품명', required: true, maxLength: 30 },
-                        mainCopy: { type: 'text', label: '한줄 USP', required: true, maxLength: 50 },
-                        subCopy: { type: 'text', label: '서브 카피', required: true, maxLength: 60 },
-                        mainImage: { type: 'image', label: '메인 이미지', required: true }
-                    }
-                },
-                usp: {
-                    name: '핵심 특징',
-                    nameEn: 'USP-3',
-                    icon: '⭐',
-                    slots: {
-                        title1: { type: 'text', label: '제목 1', required: true, maxLength: 20 },
-                        desc1: { type: 'textarea', label: '설명 1', required: true, maxLength: 50 },
-                        title2: { type: 'text', label: '제목 2', required: true, maxLength: 20 },
-                        desc2: { type: 'textarea', label: '설명 2', required: true, maxLength: 50 },
-                        title3: { type: 'text', label: '제목 3', required: true, maxLength: 20 },
-                        desc3: { type: 'textarea', label: '설명 3', required: true, maxLength: 50 }
-                    }
-                },
-                price: {
-                    name: '가격',
-                    nameEn: 'PRICE',
-                    icon: '💰',
-                    slots: {
-                        priceText: { type: 'textarea', label: '가격 안내', required: false, maxLength: 100 }
-                    }
-                },
-                proof: {
-                    name: '증거·후기',
-                     nameEn: 'PROOF',
-                    icon: '✅',
-                    slots: {
-                        review1: { type: 'text', label: '후기 요약 1', required: false, maxLength: 40 },
-                        review2: { type: 'text', label: '후기 요약 2', required: false, maxLength: 40 },
-                        certification: { type: 'text', label: '인증/테스트', required: false, maxLength: 50 }
-                    }
-                },
-                detail: {
-                    name: '상세 설명',
-                    nameEn: 'DETAIL',
-                    icon: '📋',
-                    slots: {
-                        detailImage: { type: 'image', label: '상세 이미지', required: false },
-                        detailText: { type: 'textarea', label: '설명 텍스트', required: false, maxLength: 200 }
-                    }
-                },
-                howto: {
-                    name: '사용 방법',
-                    nameEn: 'HOWTO',
-                    icon: '📝',
-                    slots: {
-                        step1Title: { type: 'text', label: '1단계', required: true, maxLength: 20 },
-                        step2Title: { type: 'text', label: '2단계', required: true, maxLength: 20 },
-                        step3Title: { type: 'text', label: '3단계', required: true, maxLength: 20 }
-                    }
-                },
-                faq: {
-                    name: '자주 묻는 질문',
-                    nameEn: 'FAQ',
-                    icon: '❓',
-                    slots: {
-                        q1: { type: 'text', label: '질문 1', required: false, maxLength: 50 },
-                        a1: { type: 'textarea', label: '답변 1', required: false, maxLength: 100 }
-                    }
-                },
-                shipping: {
-                    name: '배송·교환',
-                     nameEn: 'SHIPPING',
-                    icon: '🚚',
-                    slots: {
-                        shipping: { type: 'textarea', label: '배송 안내', required: false, maxLength: 100 }
-                    }
-                },
-                brand: {
-                    name: '브랜드 소개',
-                    nameEn: 'BRAND',
-                    icon: '🏢',
-                    slots: {
-                        intro1: { type: 'text', label: '브랜드 소개', required: true, maxLength: 50 },
-                        brandImage: { type: 'image', label: '대표 이미지', required: true }
-                    }
-                }
-            }
-        }
-    };
+  const State = {
+    projectId: PROJECT_ID,
+    templateKey: null,
+    project: null,
+    templateSpec: null,
+    selectedSectionKey: null,
+    currentLang: "ko",
+  };
 
-    function createEmptyProject() {
-        const template = TemplateSpec[State.currentTemplate];
-        if (!template) {
-            State.currentTemplate = 'beauty_01';
-            return createEmptyProject();
-        }
-        
-        const data = {};
-        for (const [sectionKey, sectionSpec] of Object.entries(template.sections)) {
-            data[sectionKey] = {};
-            for (const [slotKey, slotSpec] of Object.entries(sectionSpec.slots)) {
-                data[sectionKey][slotKey] = slotSpec.type === 'image' ? null : '';
-            }
-        }
+  // 템플릿 스펙(예시)
+  // 실제 프로젝트에서는 template-gallery/workbench에서 넘어온 spec을 기반으로 확장 가능
+  const TEMPLATE_LIBRARY = {
+    beauty_01: {
+      name: "Beauty Template 01",
+      sections: [
+        { key: "HERO", label: "HERO" },
+        { key: "USP-3", label: "USP-3" },
+        { key: "PRICE", label: "PRICE" },
+        { key: "PROOF", label: "PROOF" },
+        { key: "DETAIL", label: "DETAIL" },
+        { key: "HOWTO", label: "HOWTO" },
+        { key: "FAQ", label: "FAQ" },
+        { key: "SHIPPING-CS", label: "SHIPPING·CS" },
+        { key: "BRAND", label: "BRAND" },
+      ],
+      slots: {
+        HERO: {
+          required: ["productName", "usp", "subcopy"],
+          fields: [
+            { key: "productName", type: "text", label: "제품명" },
+            { key: "usp", type: "text", label: "USP 한 줄" },
+            { key: "subcopy", type: "text", label: "서브 카피" },
+            { key: "imageMain", type: "image", label: "메인 이미지" },
+            { key: "gallery", type: "images", label: "갤러리(최대 3)", max: 3 },
+          ],
+        },
+        "USP-3": {
+          required: ["items"],
+          fields: [
+            {
+              key: "items",
+              type: "list",
+              label: "USP 3개",
+              min: 3,
+              max: 3,
+              itemFields: [
+                { key: "icon", type: "image", label: "아이콘" },
+                { key: "title", type: "text", label: "제목" },
+                { key: "desc", type: "text", label: "설명" },
+              ],
+            },
+          ],
+        },
+        PRICE: {
+          required: ["priceTitle", "priceValue", "priceNote"],
+          fields: [
+            { key: "priceTitle", type: "text", label: "가격 타이틀" },
+            { key: "priceValue", type: "text", label: "가격 표기" },
+            { key: "priceNote", type: "text", label: "가격 안내" },
+          ],
+        },
+        PROOF: {
+          required: [],
+          fields: [
+            { key: "reviewSummary", type: "textarea", label: "리뷰 요약(3줄)" },
+            { key: "certOneLine", type: "text", label: "인증/테스트 1줄(선택)" },
+            { key: "image", type: "image", label: "증빙 이미지(선택)" },
+          ],
+        },
+        DETAIL: {
+          required: ["image"],
+          fields: [
+            { key: "image", type: "image", label: "상세 이미지(필수)" },
+            { key: "text", type: "textarea", label: "설명(선택)" },
+          ],
+        },
+        HOWTO: {
+          required: ["steps"],
+          fields: [
+            {
+              key: "steps",
+              type: "list",
+              label: "사용 방법(4단계 권장)",
+              min: 1,
+              max: 7,
+              itemFields: [
+                { key: "title", type: "text", label: "단계 제목" },
+                { key: "desc", type: "text", label: "설명" },
+                { key: "image", type: "image", label: "이미지(선택)" },
+              ],
+            },
+          ],
+        },
+        FAQ: {
+          required: ["items"],
+          fields: [
+            {
+              key: "items",
+              type: "list",
+              label: "FAQ(3개)",
+              min: 1,
+              max: 10,
+              itemFields: [
+                { key: "q", type: "text", label: "질문" },
+                { key: "a", type: "textarea", label: "답변" },
+              ],
+            },
+          ],
+        },
+        "SHIPPING-CS": {
+          required: ["items"],
+          fields: [
+            {
+              key: "items",
+              type: "list",
+              label: "배송/교환/환불/문의",
+              min: 1,
+              max: 10,
+              itemFields: [
+                { key: "title", type: "text", label: "항목" },
+                { key: "desc", type: "textarea", label: "내용" },
+              ],
+            },
+          ],
+        },
+        BRAND: {
+          required: ["brandIntro"],
+          fields: [
+            { key: "brandIntro", type: "textarea", label: "브랜드 소개(2줄)" },
+            { key: "logo", type: "image", label: "로고(선택)" },
+            { key: "image", type: "image", label: "브랜드 이미지(선택)" },
+            { key: "motto", type: "text", label: "슬로건(선택)" },
+          ],
+        },
+      },
+      presets: {
+        HERO: [
+          ["짧고 명확한 USP", "하루 5분, 피부가 편안해지는 루틴"],
+          ["부담 낮추기", "자극은 줄이고, 수분은 채우는 케어"],
+          ["신뢰 강조", "성분은 단순하게, 효과는 분명하게"],
+        ],
+        "USP-3": [
+          ["핵심 3가지", "보습 · 진정 · 밀착"],
+          ["사용감", "끈적임 없이 산뜻"],
+          ["마무리", "메이크업 전에도 OK"],
+        ],
+        PRICE: [
+          ["합리적 가격", "필요한 것만 담아 가격은 가볍게"],
+          ["구성 안내", "본품 1 + 추가 구성(선택)"],
+          ["혜택", "첫 구매 쿠폰 적용 가능"],
+        ],
+      },
+    },
+  };
 
-        return {
-            template: State.currentTemplate,
-            title: `새 상세페이지 - ${template.name}`,
-            data
-        };
-    }
+  /* ------------------------------
+   * Helpers
+   * ------------------------------ */
+  const $ = (sel, root = document) => root.querySelector(sel);
 
-    document.addEventListener('DOMContentLoaded', async function() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const templateId = urlParams.get('template');
-        const projectId = urlParams.get('id');
+  function escapeHtml(s) {
+    return String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
 
-        if (templateId && TemplateSpec[templateId]) {
-            State.currentTemplate = templateId;
-        }
+  function ensureProjectShape(project) {
+    if (!project) project = {};
+    if (!project.meta) project.meta = {};
+    if (!project.content) project.content = {};
+    if (!project.content.sections) project.content.sections = {};
+    return project;
+  }
 
-        if (projectId) {
-            await loadProject(parseInt(projectId));
-        } else {
-            State.projectData = createEmptyProject();
-        }
+  function getSectionData(sectionKey) {
+    const p = ensureProjectShape(State.project);
+    if (!p.content.sections[sectionKey]) p.content.sections[sectionKey] = {};
+    return p.content.sections[sectionKey];
+  }
 
-        initUI();
-        renderSectionButtons();
-        renderSectionEditor(State.currentSection);
-        renderPreview();
+  function setSectionData(sectionKey, data) {
+    const p = ensureProjectShape(State.project);
+    p.content.sections[sectionKey] = data;
+  }
+
+  function showToast(msg) {
+    const el = $("#toast");
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add("show");
+    setTimeout(() => el.classList.remove("show"), 1600);
+  }
+
+  /* ------------------------------
+   * DB bindings (db.js)
+   * ------------------------------ */
+  async function loadProject() {
+    if (!window.SF_DB) throw new Error("SF_DB not found. db.js 로드 확인 필요.");
+    const p = await window.SF_DB.getProject(State.projectId);
+    State.project = ensureProjectShape(p || { id: State.projectId });
+
+    // templateKey 추정(없으면 기본)
+    State.templateKey =
+      State.project.meta.templateKey ||
+      QS.get("template") ||
+      "beauty_01";
+
+    State.templateSpec = TEMPLATE_LIBRARY[State.templateKey] || TEMPLATE_LIBRARY.beauty_01;
+    State.project.meta.templateKey = State.templateKey;
+
+    // 섹션 기본값(없으면 생성)
+    State.templateSpec.sections.forEach((s) => {
+      const cur = getSectionData(s.key);
+      setSectionData(s.key, cur);
     });
 
-function renderSectionButtons() {
-    const template = TemplateSpec[State.currentTemplate];
-    const sectionNav = document.querySelector('.section-nav');
-    
-    if (!sectionNav) return;
-    
-    sectionNav.innerHTML = '';
-    
-    for (const [sectionKey, sectionSpec] of Object.entries(template.sections)) {
-        const btn = document.createElement('button');
-        btn.className = 'section-btn';
-        btn.dataset.section = sectionKey;
-        
-        const isCompleted = checkSectionCompleted(sectionKey, sectionSpec);
-        const hasRequired = checkSectionHasRequired(sectionSpec);
-        
-        let statusIcon = '';
-        if (isCompleted) {
-            statusIcon = ' ✓';
-            btn.classList.add('completed');
-        } else if (hasRequired) {
-            statusIcon = ' !';
-            btn.classList.add('required');
-        }
-        
-        // ⬇️⬇️⬇️ 여기 수정 ⬇️⬇️⬇️
-        const displayName = State.currentLang === 'ko' ? sectionSpec.name : sectionSpec.nameEn;
-        btn.innerHTML = `${sectionSpec.icon} ${displayName}${statusIcon}`;
-        // ⬆️⬆️⬆️ 여기까지 수정 ⬆️⬆️⬆️
-        
-        if (sectionKey === State.currentSection) {
-            btn.classList.add('active');
-        }
-        
-        btn.addEventListener('click', () => selectSection(sectionKey));
-        sectionNav.appendChild(btn);
-    }
-}
+    await window.SF_DB.upsertProject(State.projectId, State.project);
+  }
 
+  async function saveProject() {
+    if (!window.SF_DB) throw new Error("SF_DB not found. db.js 로드 확인 필요.");
+    State.project.meta.updatedAt = Date.now();
+    await window.SF_DB.upsertProject(State.projectId, State.project);
+    showToast("저장 완료");
+  }
 
-    // ⭐⭐⭐ 필수 함수 추가 ⭐⭐⭐
-    function checkSectionCompleted(sectionKey, sectionSpec) {
-        if (!State.projectData || !State.projectData.data) return false;
-        
-        const sectionData = State.projectData.data[sectionKey];
-        if (!sectionData) return false;
-        
-       const hasRequiredSlots = checkSectionHasRequired(sectionSpec);
-if (!hasRequiredSlots) return false;  // ✅ 이미 올바름
+  /* ------------------------------
+   * UI Render
+   * ------------------------------ */
+  function renderHeader() {
+    const title = $("#pageTitle");
+    if (title) title.textContent = "상세페이지 편집";
 
-        // 모든 필수 항목 체크
-        for (const [slotKey, slotSpec] of Object.entries(sectionSpec.slots)) {
-            if (slotSpec.required) {
-                const value = sectionData[slotKey];
-                // 빈 값 체크
-                if (!value || (typeof value === 'string' && value.trim() === '')) {
-                    return false; // 하나라도 비어있으면 미완료
-                }
-            }
-        }
-        return true; // 모든 필수 항목 채워짐
+    const badge = $("#templateBadge");
+    if (badge) badge.textContent = State.templateSpec?.name || "Template";
+  }
+
+  function renderSectionButtons() {
+    const box = $("#sectionTabs");
+    if (!box) return;
+
+    const secs = State.templateSpec.sections || [];
+    box.innerHTML = secs
+      .map((s) => {
+        const active = s.key === State.selectedSectionKey ? "active" : "";
+        return `<button class="tab ${active}" data-section="${escapeHtml(
+          s.key
+        )}">${escapeHtml(s.label)}</button>`;
+      })
+      .join("");
+
+    box.querySelectorAll("button[data-section]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const key = btn.getAttribute("data-section");
+        selectSection(key);
+      });
+    });
+  }
+
+  function renderEditor() {
+    const editor = $("#editorArea");
+    if (!editor) return;
+
+    const secKey = State.selectedSectionKey;
+    if (!secKey) {
+      editor.innerHTML = `<div class="empty">섹션을 선택해 주세요.</div>`;
+      return;
     }
 
-    function checkSectionHasRequired(sectionSpec) {
-        for (const slotSpec of Object.values(sectionSpec.slots)) {
-            if (slotSpec.required) return true;
-        }
-        return false;
+    const spec = State.templateSpec.slots[secKey];
+    if (!spec) {
+      editor.innerHTML = `<div class="empty">섹션 스펙이 없습니다: ${escapeHtml(
+        secKey
+      )}</div>`;
+      return;
     }
 
-    function initUI() {
-        const btnSave = document.getElementById('btnSave');
-        if (btnSave) btnSave.addEventListener('click', saveProject);
+    const data = getSectionData(secKey);
 
-        const btnGenerateAi = document.getElementById('btnGenerateAi');
-        if (btnGenerateAi) btnGenerateAi.addEventListener('click', generateAICopy);
-        
-    const btnToggleLang = document.getElementById('btnToggleLang');
-if (btnToggleLang) {
-    btnToggleLang.addEventListener('click', () => {
-        State.currentLang = State.currentLang === 'ko' ? 'en' : 'ko';
-        
+    const fieldsHtml = (spec.fields || [])
+      .map((f) => renderField(secKey, f, data))
+      .join("");
+
+    editor.innerHTML = `
+      <div class="editor-head">
+        <div class="editor-title">${escapeHtml(secKey)}</div>
+        <div class="editor-actions">
+          <button class="btn" id="btnSaveNow">저장</button>
+          <button class="btn ghost" id="btnPreviewNow">미리보기</button>
+        </div>
+      </div>
+      <div class="editor-body">${fieldsHtml}</div>
+    `;
+
+    const btnSaveNow = $("#btnSaveNow");
+    if (btnSaveNow) btnSaveNow.addEventListener("click", saveProject);
+
+    const btnPreviewNow = $("#btnPreviewNow");
+    if (btnPreviewNow) btnPreviewNow.addEventListener("click", renderPreview);
+  }
+
+  function renderField(sectionKey, fieldSpec, sectionData) {
+    const k = fieldSpec.key;
+    const label = fieldSpec.label || k;
+    const type = fieldSpec.type || "text";
+    const value = sectionData?.[k];
+
+    if (type === "text") {
+      return `
+        <div class="field">
+          <div class="label">${escapeHtml(label)}</div>
+          <input class="input" type="text" data-field="${escapeHtml(
+            k
+          )}" value="${escapeHtml(value || "")}" />
+        </div>`;
+    }
+
+    if (type === "textarea") {
+      return `
+        <div class="field">
+          <div class="label">${escapeHtml(label)}</div>
+          <textarea class="textarea" data-field="${escapeHtml(
+            k
+          )}">${escapeHtml(value || "")}</textarea>
+        </div>`;
+    }
+
+    if (type === "image") {
+      const src = value || "";
+      return `
+        <div class="field">
+          <div class="label">${escapeHtml(label)}</div>
+          <div class="image-field">
+            <input class="input" type="text" placeholder="이미지 URL 또는 dataURL" data-field="${escapeHtml(
+              k
+            )}" value="${escapeHtml(src)}" />
+            <div class="image-preview">
+              ${src ? `<img src="${escapeHtml(src)}" alt="" />` : `<div class="hint">이미지 없음</div>`}
+            </div>
+          </div>
+        </div>`;
+    }
+
+    if (type === "images") {
+      const max = fieldSpec.max || 3;
+      const arr = Array.isArray(value) ? value : [];
+      const rows = new Array(max).fill(0).map((_, i) => {
+        const v = arr[i] || "";
+        return `
+          <div class="row">
+            <input class="input" type="text" data-field="${escapeHtml(
+              k
+            )}" data-idx="${i}" value="${escapeHtml(v)}" placeholder="이미지 URL 또는 dataURL" />
+          </div>`;
+      });
+
+      return `
+        <div class="field">
+          <div class="label">${escapeHtml(label)}</div>
+          <div class="stack">
+            ${rows.join("")}
+          </div>
+        </div>`;
+    }
+
+    if (type === "list") {
+      const list = Array.isArray(value) ? value : [];
+      const min = fieldSpec.min || 0;
+      const max = fieldSpec.max || 10;
+
+      const itemsHtml = list.map((it, idx) => renderListItem(sectionKey, fieldSpec, it, idx)).join("");
+
+      return `
+        <div class="field">
+          <div class="label">${escapeHtml(label)}</div>
+          <div class="list-wrap" data-list="${escapeHtml(k)}">
+            <div class="list-items">
+              ${itemsHtml || `<div class="hint">항목이 없습니다.</div>`}
+            </div>
+            <div class="list-actions">
+              <button class="btn ghost" data-list-add="${escapeHtml(k)}">+ 추가</button>
+              <button class="btn ghost" data-list-remove="${escapeHtml(k)}">- 삭제</button>
+              <span class="small">min ${min}, max ${max}</span>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    return `
+      <div class="field">
+        <div class="label">${escapeHtml(label)}</div>
+        <div class="hint">지원하지 않는 필드 타입: ${escapeHtml(type)}</div>
+      </div>`;
+  }
+
+  function renderListItem(sectionKey, listSpec, itemData, idx) {
+    const itemFields = listSpec.itemFields || [];
+    const rows = itemFields
+      .map((f) => {
+        const k = f.key;
+        const label = f.label || k;
+        const type = f.type || "text";
+        const v = itemData?.[k] || "";
+
+        if (type === "text") {
+          return `
+            <div class="subfield">
+              <div class="slabel">${escapeHtml(label)}</div>
+              <input class="input" type="text"
+                data-list-field="${escapeHtml(listSpec.key)}"
+                data-idx="${idx}"
+                data-subkey="${escapeHtml(k)}"
+                value="${escapeHtml(v)}"/>
+            </div>`;
+        }
+
+        if (type === "textarea") {
+          return `
+            <div class="subfield">
+              <div class="slabel">${escapeHtml(label)}</div>
+              <textarea class="textarea"
+                data-list-field="${escapeHtml(listSpec.key)}"
+                data-idx="${idx}"
+                data-subkey="${escapeHtml(k)}">${escapeHtml(v)}</textarea>
+            </div>`;
+        }
+
+        if (type === "image") {
+          return `
+            <div class="subfield">
+              <div class="slabel">${escapeHtml(label)}</div>
+              <input class="input" type="text"
+                data-list-field="${escapeHtml(listSpec.key)}"
+                data-idx="${idx}"
+                data-subkey="${escapeHtml(k)}"
+                value="${escapeHtml(v)}" placeholder="이미지 URL 또는 dataURL"/>
+            </div>`;
+        }
+
+        return `
+          <div class="subfield">
+            <div class="slabel">${escapeHtml(label)}</div>
+            <div class="hint">지원하지 않는 타입: ${escapeHtml(type)}</div>
+          </div>`;
+      })
+      .join("");
+
+    return `
+      <div class="list-item" data-item-idx="${idx}">
+        <div class="list-item-head">
+          <div class="small">#${idx + 1}</div>
+        </div>
+        <div class="list-item-body">${rows}</div>
+      </div>`;
+  }
+
+  function bindEditorEvents() {
+    const editor = $("#editorArea");
+    if (!editor) return;
+
+    // 단일 필드 변경
+    editor.addEventListener("input", (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLElement)) return;
+
+      const fieldKey = t.getAttribute("data-field");
+      if (fieldKey) {
+        const secKey = State.selectedSectionKey;
+        if (!secKey) return;
+        const data = getSectionData(secKey);
+
+        // images 타입(갤러리) 처리
+        const idx = t.getAttribute("data-idx");
+        if (idx !== null && idx !== undefined) {
+          const i = Number(idx);
+          const arr = Array.isArray(data[fieldKey]) ? data[fieldKey] : [];
+          arr[i] = t.value;
+          data[fieldKey] = arr;
+        } else {
+          data[fieldKey] = t.value;
+        }
+        setSectionData(secKey, data);
+      }
+
+      // list item 변경
+      const listKey = t.getAttribute("data-list-field");
+      if (listKey) {
+        const secKey = State.selectedSectionKey;
+        if (!secKey) return;
+        const data = getSectionData(secKey);
+
+        const idx = Number(t.getAttribute("data-idx") || "0");
+        const subkey = t.getAttribute("data-subkey");
+        if (!subkey) return;
+
+        const arr = Array.isArray(data[listKey]) ? data[listKey] : [];
+        if (!arr[idx]) arr[idx] = {};
+        arr[idx][subkey] = t.value;
+        data[listKey] = arr;
+        setSectionData(secKey, data);
+      }
+    });
+
+    // list add/remove
+    editor.addEventListener("click", (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLElement)) return;
+
+      const addKey = t.getAttribute("data-list-add");
+      const rmKey = t.getAttribute("data-list-remove");
+
+      if (addKey || rmKey) {
+        const secKey = State.selectedSectionKey;
+        if (!secKey) return;
+        const spec = State.templateSpec.slots[secKey];
+        if (!spec) return;
+
+        const listSpec = (spec.fields || []).find((f) => f.key === (addKey || rmKey));
+        if (!listSpec) return;
+
+        const min = listSpec.min || 0;
+        const max = listSpec.max || 10;
+        const data = getSectionData(secKey);
+
+        const arr = Array.isArray(data[listSpec.key]) ? data[listSpec.key] : [];
+
+        if (addKey) {
+          if (arr.length >= max) return showToast(`최대 ${max}개까지 추가 가능`);
+          const item = {};
+          (listSpec.itemFields || []).forEach((f) => (item[f.key] = ""));
+          arr.push(item);
+          data[listSpec.key] = arr;
+          setSectionData(secKey, data);
+          renderEditor();
+        }
+
+        if (rmKey) {
+          if (arr.length <= min) return showToast(`최소 ${min}개는 유지해야 합니다`);
+          arr.pop();
+          data[listSpec.key] = arr;
+          setSectionData(secKey, data);
+          renderEditor();
+        }
+      }
+    });
+  }
+
+  /* ------------------------------
+   * Preview Render
+   * ------------------------------ */
+  function renderPreview() {
+    const panel = $("#previewArea");
+    if (!panel) return;
+
+    const secs = State.templateSpec.sections || [];
+    const html = secs
+      .map((s) => {
+        const data = getSectionData(s.key);
+        return `
+          <div class="pv-section">
+            <div class="pv-head">${escapeHtml(s.label)}</div>
+            <pre class="pv-json">${escapeHtml(JSON.stringify(data || {}, null, 2))}</pre>
+          </div>`;
+      })
+      .join("");
+
+    panel.innerHTML = html;
+    showToast("미리보기 갱신");
+  }
+
+  /* ------------------------------
+   * Section selection
+   * ------------------------------ */
+  function selectSection(key) {
+    State.selectedSectionKey = key;
+    renderSectionButtons();
+    renderEditor();
+    renderPreview();
+  }
+
+  /* ------------------------------
+   * AI copy generation placeholder
+   * (실제 AI 연결은 추후)
+   * ------------------------------ */
+  function generateAICopy() {
+    showToast("AI 카피 생성(데모): 추후 연결 예정");
+  }
+
+  /* ------------------------------
+   * Export hooks
+   * ------------------------------ */
+  async function exportNow() {
+    try {
+      if (!window.SF_EXPORT) throw new Error("SF_EXPORT not found. export.js 로드 확인 필요.");
+      await saveProject();
+      await window.SF_EXPORT.openExportModal(State.project, State.templateSpec);
+    } catch (err) {
+      console.error(err);
+      alert(err.message || String(err));
+    }
+  }
+
+  /* ------------------------------
+   * Init
+   * ------------------------------ */
+  function bindTopButtons() {
+    const btnHome = $("#btnHome");
+    if (btnHome) btnHome.addEventListener("click", () => (location.href = "../index.html"));
+
+    const btnPreview = $("#btnPreview");
+    if (btnPreview) btnPreview.addEventListener("click", renderPreview);
+
+    const btnExport = $("#btnExport");
+    if (btnExport) btnExport.addEventListener("click", exportNow);
+
+    const btnSave = $("#btnSave");
+    if (btnSave) btnSave.addEventListener("click", saveProject);
+
+    const btnGenerateAi = $("#btnGenerateAi");
+    if (btnGenerateAi) btnGenerateAi.addEventListener("click", generateAICopy);
+
+    const btnToggleLang = document.getElementById("btnToggleLang");
+    if (btnToggleLang) {
+      btnToggleLang.addEventListener("click", () => {
+        State.currentLang = State.currentLang === "ko" ? "en" : "ko";
+
         // 버튼 색상 변경
-        btnToggleLang.classList.remove('active-ko', 'active-en');
-        if (State.currentLang === 'ko') {
-            btnToggleLang.classList.add('active-ko');
+        btnToggleLang.classList.remove("active-ko", "active-en");
+        if (State.currentLang === "ko") {
+          btnToggleLang.classList.add("active-ko");
         } else {
-            btnToggleLang.classList.add('active-en');
+          btnToggleLang.classList.add("active-en");
         }
-        
+
         renderSectionButtons();
+      });
+
+      // 초기 상태 설정
+      btnToggleLang.classList.add("active-ko");
+    }
+
+    // ✅ initUI() 닫힘(누락되어 전체 스크립트 파싱이 실패했음)
+  }
+
+  async function init() {
+    renderHeader();
+    await loadProject();
+
+    // 기본 섹션 선택
+    State.selectedSectionKey = State.templateSpec.sections?.[0]?.key || "HERO";
+
+    renderSectionButtons();
+    renderEditor();
+    bindEditorEvents();
+    bindTopButtons();
+    renderPreview();
+
+    console.log("SellingForm Detail Editor initialized", { projectId: State.projectId, version: VERSION });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    init().catch((e) => {
+      console.error(e);
+      alert(e.message || String(e));
     });
-    
-    // 초기 상태 설정
-    btnToggleLang.classList.add('active-ko');
-}
-
-
-    function selectSection(sectionKey) {
-        State.currentSection = sectionKey;
-
-        document.querySelectorAll('.section-btn').forEach(btn => btn.classList.remove('active'));
-        const activeBtn = document.querySelector(`[data-section="${sectionKey}"]`);
-        if (activeBtn) activeBtn.classList.add('active');
-
-        renderSectionEditor(sectionKey);
-    }
-
-    function renderSectionEditor(sectionKey) {
-        const template = TemplateSpec[State.currentTemplate];
-        const sectionSpec = template.sections[sectionKey];
-        if (!sectionSpec) return;
-        
-        const sectionData = State.projectData.data[sectionKey];
-        const editorContainer = document.getElementById('slotEditor');
-        if (!editorContainer) return;
-        
-        editorContainer.innerHTML = '';
-
-        const sectionTitle = document.createElement('h3');
-        sectionTitle.textContent = `${sectionSpec.icon} ${sectionSpec.name}`;
-        editorContainer.appendChild(sectionTitle);
-
-        for (const [slotKey, slotSpec] of Object.entries(sectionSpec.slots)) {
-            const slotItem = createSlotItem(slotKey, slotSpec, sectionData[slotKey], sectionKey);
-            editorContainer.appendChild(slotItem);
-        }
-    }
-
-    function createSlotItem(slotKey, slotSpec, currentValue, sectionKey) {
-        const slotItem = document.createElement('div');
-        slotItem.className = 'slot-item';
-
-        const slotLabel = document.createElement('div');
-        slotLabel.className = 'slot-label';
-        
-        const labelText = document.createElement('span');
-        labelText.textContent = slotSpec.label;
-        slotLabel.appendChild(labelText);
-
-        if (slotSpec.required) {
-            const badge = document.createElement('span');
-            badge.className = 'slot-required';
-            badge.textContent = '필수';
-            slotLabel.appendChild(badge);
-        }
-
-        slotItem.appendChild(slotLabel);
-
-        let inputElement;
-
-        if (slotSpec.type === 'text') {
-            inputElement = document.createElement('input');
-            inputElement.type = 'text';
-            inputElement.className = 'slot-input';
-            inputElement.value = currentValue || '';
-            inputElement.placeholder = slotSpec.label;
-            if (slotSpec.maxLength) inputElement.maxLength = slotSpec.maxLength;
-            inputElement.addEventListener('input', () => updateSlotData(sectionKey, slotKey, inputElement.value));
-
-        } else if (slotSpec.type === 'textarea') {
-            inputElement = document.createElement('textarea');
-            inputElement.className = 'slot-input slot-textarea';
-            inputElement.value = currentValue || '';
-            inputElement.placeholder = slotSpec.label;
-            if (slotSpec.maxLength) inputElement.maxLength = slotSpec.maxLength;
-            inputElement.addEventListener('input', () => updateSlotData(sectionKey, slotKey, inputElement.value));
-
-        } else if (slotSpec.type === 'image') {
-            inputElement = createImageUploadBox(slotKey, currentValue, sectionKey);
-        }
-
-        slotItem.appendChild(inputElement);
-        return slotItem;
-    }
-
-    function createImageUploadBox(slotKey, currentValue, sectionKey) {
-        const container = document.createElement('div');
-        container.className = 'image-upload-container';
-
-        if (currentValue) {
-            const img = document.createElement('img');
-            img.src = currentValue;
-            img.className = 'image-preview';
-            container.appendChild(img);
-
-            const btn = document.createElement('button');
-            btn.textContent = '이미지 변경';
-            btn.className = 'btn-secondary';
-            btn.addEventListener('click', () => triggerImageUpload(sectionKey, slotKey));
-            container.appendChild(btn);
-        } else {
-            const uploadBox = document.createElement('div');
-            uploadBox.className = 'image-upload-box';
-            uploadBox.innerHTML = '<div style="color: #999; font-size: 2rem;">📷</div><p style="color: #666;">클릭하여 이미지 업로드</p>';
-            uploadBox.addEventListener('click', () => triggerImageUpload(sectionKey, slotKey));
-            container.appendChild(uploadBox);
-        }
-
-        return container;
-    }
-
-    function triggerImageUpload(sectionKey, slotKey) {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.style.display = 'none';
-
-        input.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) handleImageUpload(file, sectionKey, slotKey);
-        });
-
-        document.body.appendChild(input);
-        input.click();
-        document.body.removeChild(input);
-    }
-
-    function handleImageUpload(file, sectionKey, slotKey) {
-        if (file.size > 5 * 1024 * 1024) {
-            alert('이미지 크기는 5MB 이하여야 합니다.');
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            updateSlotData(sectionKey, slotKey, e.target.result);
-            renderSectionEditor(sectionKey);
-            renderPreview();
-        };
-        reader.readAsDataURL(file);
-    }
-
-    function updateSlotData(sectionKey, slotKey, value) {
-        State.projectData.data[sectionKey][slotKey] = value;
-        State.isModified = true;
-        renderPreview();
-        renderSectionButtons(); // 버튼 상태 즉시 업데이트
-    }
-
-    function renderPreview() {
-        const canvas = document.getElementById('previewCanvas');
-        if (!canvas) return;
-
-        const ctx = canvas.getContext('2d');
-        canvas.height = 5000;
-
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, 860, 5000);
-
-        ctx.fillStyle = '#000000';
-        ctx.font = 'bold 36px Arial';
-        ctx.textAlign = 'center';
-
-        const heroData = State.projectData.data.hero;
-        if (heroData?.productName) {
-            ctx.fillText(heroData.productName, 430, 50);
-        }
-        if (heroData?.mainCopy) {
-            ctx.font = '24px Arial';
-            ctx.fillText(heroData.mainCopy, 430, 110);
-        }
-    }
-
-    async function saveProject() {
-        const title = State.projectData.data.hero?.productName || '제목 없음';
-        
-const itemData = {
-    type: 'detail',
-    title: title,
-    thumbnail: null,
-    data: State.projectData  // ✅
-};
-
-
-        try {
-            if (State.projectId) {
-                await window.SellingForm.DB.updateItem(State.projectId, itemData);
-                alert('저장되었습니다!');
-            } else {
-                const id = await window.SellingForm.DB.addItem(itemData);
-                State.projectId = id;
-                alert('프로젝트가 생성되었습니다!');
-            }
-            State.isModified = false;
-        } catch (error) {
-            alert('저장 실패: ' + error.message);
-        }
-    }
-
-    async function loadProject(id) {
-        try {
-            const item = await window.SellingForm.DB.getItem(id);
-            if (!item) {
-                alert('프로젝트를 찾을 수 없습니다.');
-                return;
-            }
-            State.projectId = id;
-            State.projectData = item.data;
-            State.currentTemplate = item.data.template;
-            State.isModified = false;
-        } catch (error) {
-            alert('불러오기 실패: ' + error.message);
-        }
-    }
-
-    window.addEventListener('beforeunload', (e) => {
-        if (State.isModified) {
-            e.preventDefault();
-            e.returnValue = '';
-        }
-    });
-
-    window.detailBuilderState = {
-        get projectData() { return State.projectData; },
-        get currentTemplate() { return State.currentTemplate; },
-        render: renderPreview
-    };
-
-    window.closeAiModal = () => {
-        const modal = document.getElementById('aiModal');
-        if (modal) modal.classList.remove('active');
-    };
-
-    function generateAICopy() {
-        alert('AI 생성 기능은 준비 중입니다.');
-    }
-
+  });
 })();
