@@ -19,7 +19,7 @@
             name: 'Beauty Template 01',
             sections: {
                 hero: {
-                    name: 'HERO',
+                    name: '히어로',
                     icon: '🎯',
                     slots: {
                         productName: { type: 'text', label: '제품명', required: true, maxLength: 30 },
@@ -29,7 +29,7 @@
                     }
                 },
                 usp: {
-                    name: 'USP-3',
+                    name: '핵심 특징',
                     icon: '⭐',
                     slots: {
                         title1: { type: 'text', label: '제목 1', required: true, maxLength: 20 },
@@ -41,14 +41,14 @@
                     }
                 },
                 price: {
-                    name: 'PRICE',
+                    name: '가격',
                     icon: '💰',
                     slots: {
                         priceText: { type: 'textarea', label: '가격 안내', required: false, maxLength: 100 }
                     }
                 },
                 proof: {
-                    name: 'PROOF',
+                    name: '증거·후기',
                     icon: '✅',
                     slots: {
                         review1: { type: 'text', label: '후기 요약 1', required: false, maxLength: 40 },
@@ -57,7 +57,7 @@
                     }
                 },
                 detail: {
-                    name: 'DETAIL',
+                    name: '상세 설명',
                     icon: '📋',
                     slots: {
                         detailImage: { type: 'image', label: '상세 이미지', required: false },
@@ -65,7 +65,7 @@
                     }
                 },
                 howto: {
-                    name: 'HOWTO',
+                    name: '사용 방법',
                     icon: '📝',
                     slots: {
                         step1Title: { type: 'text', label: '1단계', required: true, maxLength: 20 },
@@ -74,7 +74,7 @@
                     }
                 },
                 faq: {
-                    name: 'FAQ',
+                    name: '자주 묻는 질문',
                     icon: '❓',
                     slots: {
                         q1: { type: 'text', label: '질문 1', required: false, maxLength: 50 },
@@ -82,14 +82,14 @@
                     }
                 },
                 shipping: {
-                    name: '배송·CS',
+                    name: '배송·교환',
                     icon: '🚚',
                     slots: {
                         shipping: { type: 'textarea', label: '배송 안내', required: false, maxLength: 100 }
                     }
                 },
                 brand: {
-                    name: 'BRAND',
+                    name: '브랜드 소개',
                     icon: '🏢',
                     slots: {
                         intro1: { type: 'text', label: '브랜드 소개', required: true, maxLength: 50 },
@@ -186,10 +186,9 @@
         const sectionData = State.projectData.data[sectionKey];
         if (!sectionData) return false;
         
-        // 필수 항목이 없으면 자동 완료
         const hasRequiredSlots = checkSectionHasRequired(sectionSpec);
-        if (!hasRequiredSlots) return true;
-        
+if (!hasRequiredSlots) return false;  // ✅ 필수 없으면 표시 안 함
+
         // 모든 필수 항목 체크
         for (const [slotKey, slotSpec] of Object.entries(sectionSpec.slots)) {
             if (slotSpec.required) {
@@ -391,8 +390,9 @@ const itemData = {
     type: 'detail',
     title: title,
     thumbnail: null,
-    data: State.projectData
+    data: State.projectData  // ✅
 };
+
 
         try {
             if (State.projectId) {
