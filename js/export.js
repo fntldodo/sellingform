@@ -1,242 +1,380 @@
 /* ============================================================
-   🟣 SellingForm Export Module
-   - 모달 UI로 Export 옵션(채널/포맷/슬라이스 높이/프로젝트명) 입력
-   - 캔버스 렌더(샘플) + ZIP 생성(샘플)
-   - JSZip + FileSaver CDN 로드 포함
+   🟣 SellingForm Export (ZIP/Image/HTML)
+   - GitHub Pages(정적) 환경에서 동작하도록 CDN 로더 포함
+   - JSZip + FileSaver.js(saveAs) 의존
+   - detail.html / workbench.html 에서 공통 사용
    ============================================================ */
 
 (function () {
-  "use strict";
+  'use strict';
+
+  // 네임스페이스 보장
+  window.SellingForm = window.SellingForm || {};
 
   // ------------------------------
-  // 0) 간단 CDN 로더 (중복 로드 방지)
+  // CDN 로더 (중복 로드 방지)
   // ------------------------------
   const CDN = {
-    jszip: "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js",
-    filesaver:
-      "https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js",
+    JSZIP: 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+    FILESAVER: 'https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js'
   };
 
-  function loadScriptOnce(src) {
-    return new Promise((resolve, reject) => {
-      const exist = Array.from(document.scripts || []).some((s) => s.src === src);
-      if (exist) return resolve(true);
+  const _loadCache = new Map();
 
-      const script = document.createElement("script");
+  function loadScriptOnce(src) {
+    if (_loadCache.has(src)) return _loadCache.get(src);
+
+    const p = new Promise((resolve, reject) => {
+      // 이미 동일 src가 DOM에 있으면 onload를 기다림
+      const existing = Array.from(document.scripts || []).find((s) => s.src === src);
+      if (existing) {
+        // 이미 로드 완료되었을 수도 있으니 microtask에서 검사
+        Promise.resolve().then(resolve);
+        return;
+      }
+
+      const script = document.createElement('script');
       script.src = src;
       script.async = true;
-      script.onload = () => resolve(true);
-      script.onerror = () => reject(new Error("Failed to load: " + src));
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('스크립트 로드 실패: ' + src));
       document.head.appendChild(script);
     });
+
+    _loadCache.set(src, p);
+    return p;
   }
 
-  async function ensureDeps() {
-    await loadScriptOnce(CDN.jszip);
-    await loadScriptOnce(CDN.filesaver);
-    if (!window.JSZip) throw new Error("JSZip 로드 실패");
-    if (!window.saveAs) throw new Error("FileSaver(saveAs) 로드 실패");
+  async function ensureExportLibs() {
+    // JSZip, saveAs(FileSaver) 둘 다 필요
+    if (window.JSZip && typeof window.saveAs === 'function') return true;
+
+    await loadScriptOnce(CDN.JSZIP);
+    await loadScriptOnce(CDN.FILESAVER);
+
+    return !!(window.JSZip && typeof window.saveAs === 'function');
   }
 
   // ------------------------------
-  // 1) 모달 UI 생성
+  // 공개 API
   // ------------------------------
-  function ensureModal() {
-    let modal = document.getElementById("sfExportModal");
-    if (modal) return modal;
+  window.SellingForm.Export = {
+    startExport,
+    exportToZip,
+    exportAsHTML
+  };
 
-    modal = document.createElement("div");
-    modal.id = "sfExportModal";
-    modal.className = "sf-modal-backdrop";
-    modal.innerHTML = `
-      <div class="sf-modal">
-        <div class="sf-modal-head">
-          <div class="sf-modal-title">내보내기</div>
-          <button class="sf-modal-close" id="sfExportClose" aria-label="close">×</button>
-        </div>
+  /**
+   * exportType: 'image' | 'html' | 'both'
+   * projectData: { template, data }
+   * options: { projectName, sliceHeight, format, quality }
+   */
+  async function startExport(exportType, projectData, options) {
+    options = options || {};
 
-        <div class="sf-modal-body">
-          <div class="sf-grid">
-            <label class="sf-field">
-              <div class="sf-label">프로젝트 파일명(필수)</div>
-              <input class="sf-input" id="sfExportProjectName" placeholder="예: my_product" />
-              <div class="sf-help">ZIP 파일명 및 이미지 파일명 {project} 값으로 사용됩니다.</div>
-            </label>
-
-            <label class="sf-field">
-              <div class="sf-label">채널</div>
-              <select class="sf-input" id="sfExportChannel">
-                <option value="smartstore">Smartstore (860)</option>
-                <option value="coupang">Coupang (780)</option>
-              </select>
-              <div class="sf-help">Coupang 780은 860 마스터를 비율 축소하여 생성됩니다(정책).</div>
-            </label>
-
-            <label class="sf-field">
-              <div class="sf-label">포맷</div>
-              <select class="sf-input" id="sfExportFormat">
-                <option value="png">PNG (기본)</option>
-                <option value="jpg">JPG</option>
-              </select>
-            </label>
-
-            <label class="sf-field">
-              <div class="sf-label">Slice Height(px)</div>
-              <input class="sf-input" id="sfExportSliceHeight" type="number" min="200" step="10" value="860" />
-              <div class="sf-help">템플릿별 추천값이 있을 경우 자동 제안될 수 있습니다.</div>
-            </label>
-
-            <label class="sf-field">
-              <div class="sf-label">다운로드 크기(미리보기)</div>
-              <div class="sf-help" id="sfExportSizeHint">860 x (auto)</div>
-            </label>
-          </div>
-
-          <div class="sf-preview">
-            <div class="sf-preview-head">
-              <div class="sf-preview-title">Export Preview (샘플)</div>
-              <button class="sf-btn ghost" id="sfExportRender">렌더</button>
-            </div>
-            <div class="sf-preview-body">
-              <canvas id="sfExportCanvas" width="860" height="1200" style="max-width:100%;border-radius:12px;"></canvas>
-              <div class="sf-help">현재는 데모 렌더입니다. 실제는 “워크벤치 렌더러”로 교체/연동하세요.</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="sf-modal-foot">
-          <button class="sf-btn ghost" id="sfExportCancel">취소</button>
-          <button class="sf-btn" id="sfExportDownload">ZIP 다운로드</button>
-        </div>
-      </div>
-    `;
-
-    // 최소 스타일(없으면 적용)
-    if (!document.getElementById("sfExportModalStyle")) {
-      const st = document.createElement("style");
-      st.id = "sfExportModalStyle";
-      st.textContent = `
-        .sf-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:9999;padding:18px;}
-        .sf-modal-backdrop.show{display:flex;}
-        .sf-modal{width:min(820px,100%);background:#fff;border-radius:16px;box-shadow:0 10px 32px rgba(0,0,0,.2);overflow:hidden;font-family:Pretendard,system-ui,-apple-system,Segoe UI,Roboto,Arial;}
-        .sf-modal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eee;}
-        .sf-modal-title{font-weight:800;font-size:16px;}
-        .sf-modal-close{border:none;background:transparent;font-size:22px;cursor:pointer;line-height:1;}
-        .sf-modal-body{padding:14px 16px;max-height:min(70vh,760px);overflow:auto;}
-        .sf-modal-foot{display:flex;gap:10px;justify-content:flex-end;padding:12px 16px;border-top:1px solid #eee;}
-        .sf-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-        .sf-field{display:flex;flex-direction:column;gap:6px;}
-        .sf-label{font-weight:700;font-size:13px;color:#333;}
-        .sf-input{border:1px solid #ddd;border-radius:12px;padding:10px 12px;font-size:14px;outline:none;}
-        .sf-input:focus{border-color:#9aa7ff;box-shadow:0 0 0 3px rgba(154,167,255,.25);}
-        .sf-help{font-size:12px;color:#666;line-height:1.4;}
-        .sf-btn{border:none;border-radius:12px;padding:10px 12px;font-weight:800;cursor:pointer;background:#4d6bff;color:#fff;}
-        .sf-btn.ghost{background:#f2f4ff;color:#2c3a8c;}
-        .sf-preview{margin-top:14px;border:1px solid #eee;border-radius:14px;overflow:hidden;}
-        .sf-preview-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#fafafa;}
-        .sf-preview-title{font-weight:800;font-size:13px;}
-        .sf-preview-body{padding:12px;}
-        @media (max-width:720px){.sf-grid{grid-template-columns:1fr;}}
-      `;
-      document.head.appendChild(st);
+    const ok = await ensureExportLibs();
+    if (!ok) {
+      alert('Export 라이브러리 로딩에 실패했습니다. (JSZip/FileSaver)');
+      return false;
     }
 
-    document.body.appendChild(modal);
+    try {
+      if (exportType === 'image') {
+        const canvas = document.getElementById('previewCanvas');
+        return await exportToZip(canvas, options.projectName || 'sellingform', {
+          sliceHeight: options.sliceHeight || 1200,
+          format: options.format || 'png',
+          quality: typeof options.quality === 'number' ? options.quality : 0.92
+        });
+      }
 
-    // 닫기 이벤트
-    modal.querySelector("#sfExportClose").addEventListener("click", hideModal);
-    modal.querySelector("#sfExportCancel").addEventListener("click", hideModal);
+      if (exportType === 'html') {
+        return await exportAsHTML(projectData, options.projectName || 'sellingform_html');
+      }
 
-    // 렌더
-    modal.querySelector("#sfExportRender").addEventListener("click", () => {
-      const channel = modal.querySelector("#sfExportChannel").value;
-      const sliceHeight = Number(modal.querySelector("#sfExportSliceHeight").value || 860);
-      applySizeHint(channel, sliceHeight);
-      renderDemoCanvas();
-    });
+      if (exportType === 'both') {
+        const canvas = document.getElementById('previewCanvas');
+        await exportToZip(canvas, (options.projectName || 'sellingform') + '_images', {
+          sliceHeight: options.sliceHeight || 1200,
+          format: options.format || 'png',
+          quality: typeof options.quality === 'number' ? options.quality : 0.92
+        });
+        return await exportAsHTML(projectData, (options.projectName || 'sellingform') + '_html');
+      }
 
-    // 다운로드
-    modal.querySelector("#sfExportDownload").addEventListener("click", async () => {
+      alert('알 수 없는 exportType: ' + exportType);
+      return false;
+    } catch (err) {
+      console.error('Export 실패:', err);
+      alert('Export 중 오류가 발생했습니다: ' + (err && err.message ? err.message : err));
+      return false;
+    }
+  }
+
+  // ------------------------------
+  // 이미지 슬라이스 ZIP 내보내기
+  // ------------------------------
+  function exportToZip(canvas, projectName, options) {
+    return new Promise((resolve) => {
+      options = options || {};
+      const sliceHeight = Math.max(200, Number(options.sliceHeight || 1200));
+      const format = (options.format || 'png').toLowerCase();
+      const quality = typeof options.quality === 'number' ? options.quality : 0.92;
+
+      if (!canvas) {
+        alert('캔버스를 찾을 수 없습니다. (previewCanvas)');
+        resolve(false);
+        return;
+      }
+
       try {
-        await downloadZip();
+        const zip = new window.JSZip();
+        const totalHeight = canvas.height;
+        const width = canvas.width;
+        const sliceCount = Math.ceil(totalHeight / sliceHeight);
+        const jobs = [];
+
+        for (let i = 0; i < sliceCount; i++) {
+          const index = i;
+          const sliceCanvas = document.createElement('canvas');
+          sliceCanvas.width = width;
+          const currentSliceHeight = Math.min(sliceHeight, totalHeight - index * sliceHeight);
+          sliceCanvas.height = currentSliceHeight;
+
+          const ctx = sliceCanvas.getContext('2d');
+          ctx.drawImage(
+            canvas,
+            0,
+            index * sliceHeight,
+            width,
+            currentSliceHeight,
+            0,
+            0,
+            width,
+            currentSliceHeight
+          );
+
+          const fileName = `slice_${String(index + 1).padStart(3, '0')}.${format}`;
+          jobs.push(
+            new Promise((res) => {
+              sliceCanvas.toBlob(
+                (blob) => {
+                  if (blob) zip.file(fileName, blob);
+                  res();
+                },
+                `image/${format}`,
+                quality
+              );
+            })
+          );
+        }
+
+        Promise.all(jobs)
+          .then(() => zip.generateAsync({ type: 'blob' }))
+          .then((zipBlob) => {
+            window.saveAs(zipBlob, `${projectName}.zip`);
+            resolve(true);
+          })
+          .catch((e) => {
+            console.error('ZIP 생성 실패:', e);
+            alert('ZIP 생성 실패: ' + e.message);
+            resolve(false);
+          });
       } catch (e) {
-        console.error(e);
-        alert(e.message || String(e));
+        console.error('exportToZip 실패:', e);
+        alert('이미지 Export 실패: ' + e.message);
+        resolve(false);
+      }
+    });
+  }
+
+  // ------------------------------
+  // HTML/CSS/이미지 ZIP 내보내기
+  // ------------------------------
+  function exportAsHTML(projectData, projectName) {
+    return new Promise((resolve) => {
+      try {
+        if (!projectData || !projectData.data) {
+          alert('프로젝트 데이터가 없습니다.');
+          resolve(false);
+          return;
+        }
+
+        const zip = new window.JSZip();
+
+        const html = generateHTML(projectData);
+        zip.file('index.html', html);
+
+        const css = generateCSS(projectData.template || 'beauty_01');
+        zip.file('style.css', css);
+
+        const images = extractImages(projectData.data);
+        if (images.length > 0) {
+          const imgFolder = zip.folder('images');
+          images.forEach((img) => {
+            const blob = base64ToBlob(img.data);
+            imgFolder.file(`${img.name}.${img.ext}`, blob);
+          });
+        }
+
+        zip.file('README.txt', generateReadme(projectData));
+
+        zip
+          .generateAsync({ type: 'blob' })
+          .then((zipBlob) => {
+            window.saveAs(zipBlob, `${projectName}.zip`);
+            resolve(true);
+          })
+          .catch((e) => {
+            console.error('HTML ZIP 생성 실패:', e);
+            alert('HTML ZIP 생성 실패: ' + e.message);
+            resolve(false);
+          });
+      } catch (e) {
+        console.error('exportAsHTML 실패:', e);
+        alert('HTML Export 실패: ' + e.message);
+        resolve(false);
+      }
+    });
+  }
+
+  // ------------------------------
+  // Export 템플릿 생성기(최소 안전 구현)
+  // ------------------------------
+  function generateHTML(projectData) {
+    const data = projectData.data || {};
+    const productName = (data.hero && data.hero.productName) || '상품명';
+
+    let html = '';
+    html += '<!DOCTYPE html>\n';
+    html += '<html lang="ko">\n';
+    html += '<head>\n';
+    html += '  <meta charset="UTF-8">\n';
+    html += '  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n';
+    html += `  <title>${escapeHtml(productName)}</title>\n`;
+    html += '  <link rel="stylesheet" href="style.css">\n';
+    html += '</head>\n';
+    html += '<body>\n';
+    html += '  <div class="detail-page-container">\n';
+
+    // 섹션 순서(beauty_01 기본 9블록)
+    const order = ['hero', 'usp', 'price', 'proof', 'detail', 'howto', 'faq', 'shipping', 'brand'];
+    order.forEach((key) => {
+      const sectionData = data[key];
+      if (sectionData && Object.keys(sectionData).length > 0) {
+        html += renderSectionHTML(key, sectionData);
       }
     });
 
-    // 채널 변경 시 힌트
-    modal.querySelector("#sfExportChannel").addEventListener("change", () => {
-      const channel = modal.querySelector("#sfExportChannel").value;
-      const sliceHeight = Number(modal.querySelector("#sfExportSliceHeight").value || 860);
-      applySizeHint(channel, sliceHeight);
+    html += '  </div>\n';
+    html += '</body>\n';
+    html += '</html>\n';
+    return html;
+  }
+
+  function renderSectionHTML(sectionKey, sectionData) {
+    // 최소 렌더러: 텍스트는 p로, 이미지는 images 폴더 참조(파일명 매핑은 generateImageName과 동일)
+    let out = '';
+    out += `  <section class="sf-section sf-${sectionKey}">\n`;
+    out += `    <h2 class="sf-section-title">${escapeHtml(sectionKey.toUpperCase())}</h2>\n`;
+
+    Object.entries(sectionData).forEach(([slotKey, value], idx) => {
+      if (!value) return;
+
+      if (typeof value === 'string' && value.startsWith('data:image/')) {
+        // 동일 규칙으로 파일명 생성
+        const ext = value.split(';')[0].split('/')[1] || 'png';
+        const imgName = generateImageName(sectionKey, slotKey, idx);
+        out += `    <div class="sf-slot sf-slot-image">\n`;
+        out += `      <img src="images/${imgName}.${ext}" alt="${escapeHtml(sectionKey)}" />\n`;
+        out += '    </div>\n';
+      } else {
+        out += `    <div class="sf-slot sf-slot-text">\n`;
+        out += `      <p>${escapeHtml(String(value))}</p>\n`;
+        out += '    </div>\n';
+      }
     });
 
-    modal.querySelector("#sfExportSliceHeight").addEventListener("input", () => {
-      const channel = modal.querySelector("#sfExportChannel").value;
-      const sliceHeight = Number(modal.querySelector("#sfExportSliceHeight").value || 860);
-      applySizeHint(channel, sliceHeight);
-    });
-
-    return modal;
+    out += '  </section>\n';
+    return out;
   }
 
-  function showModal() {
-    const m = ensureModal();
-    m.classList.add("show");
+  function generateCSS() {
+    // 최소 스타일(내보내기 파일이 깨지지 않게)
+    return [
+      '*{margin:0;padding:0;box-sizing:border-box;}',
+      'body{font-family:system-ui,-apple-system,Segoe UI,Roboto,\"Noto Sans KR\",sans-serif;line-height:1.6;color:#222;background:#fff;}',
+      '.detail-page-container{max-width:860px;margin:0 auto;padding:16px;}',
+      '.sf-section{padding:18px 14px;border:1px solid #eee;border-radius:14px;margin:14px 0;}',
+      '.sf-section-title{font-size:14px;letter-spacing:.06em;color:#666;margin-bottom:10px;}',
+      '.sf-slot{margin:10px 0;}',
+      '.sf-slot-image img{width:100%;height:auto;display:block;border-radius:12px;border:1px solid #f0f0f0;}'
+    ].join('\n');
   }
 
-  function hideModal() {
-    const m = document.getElementById("sfExportModal");
-    if (m) m.classList.remove("show");
+  function extractImages(data) {
+    const images = [];
+    let imageCounter = 0;
+
+    for (const sectionKey in data) {
+      const sectionData = data[sectionKey] || {};
+      for (const slotKey in sectionData) {
+        const value = sectionData[slotKey];
+        if (value && typeof value === 'string' && value.startsWith('data:image/')) {
+          const ext = (value.split(';')[0].split('/')[1] || 'png').toLowerCase();
+          const name = generateImageName(sectionKey, slotKey, imageCounter++);
+          images.push({ name, ext, data: value });
+        }
+      }
+    }
+    return images;
   }
 
-  function applySizeHint(channel, sliceHeight) {
-    const hint = document.getElementById("sfExportSizeHint");
-    const canvas = document.getElementById("sfExportCanvas");
-    if (!hint || !canvas) return;
-
-    const w = channel === "coupang" ? 780 : 860;
-    hint.textContent = `${w} x (auto), slice ${sliceHeight}px`;
-    canvas.width = 860; // 마스터 기준
-    canvas.height = Math.max(1200, sliceHeight * 2);
+  function generateImageName(section, slot, index) {
+    // 기존 코드 호환용(주요 슬롯만 명명)
+    const nameMap = {
+      hero_mainImage: 'hero_main',
+      hero_gallery1: 'gallery1',
+      hero_gallery2: 'gallery2',
+      hero_gallery3: 'gallery3',
+      usp_icon1: 'usp_icon1',
+      usp_icon2: 'usp_icon2',
+      usp_icon3: 'usp_icon3',
+      detail_detailImage: 'detail_main',
+      brand_logo: 'brand_logo',
+      brand_brandImage: 'brand_main'
+    };
+    const key = `${section}_${slot}`;
+    return nameMap[key] || `image_${index}`;
   }
 
-  // ------------------------------
-  // 2) 데모 캔버스 렌더 (실제는 렌더러 연결)
-  // ------------------------------
-  let _currentProject = null;
-  let _currentTemplate = null;
+  function base64ToBlob(base64) {
+    const parts = base64.split(';base64,');
+    const contentType = (parts[0] || '').split(':')[1] || 'image/png';
+    const raw = window.atob(parts[1] || '');
+    const rawLength = raw.length;
+    const uInt8Array = new Uint8Array(rawLength);
+    for (let i = 0; i < rawLength; i++) uInt8Array[i] = raw.charCodeAt(i);
+    return new Blob([uInt8Array], { type: contentType });
+  }
 
-  function renderDemoCanvas() {
-    const canvas = document.getElementById("sfExportCanvas");
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+  function generateReadme(projectData) {
+    const productName = (projectData.data && projectData.data.hero && projectData.data.hero.productName) || '제목 없음';
+    const template = projectData.template || 'beauty_01';
+    return [
+      'SellingForm Export',
+      `Project: ${productName}`,
+      `Template: ${template}`,
+      `Date: ${new Date().toLocaleString('ko-KR')}`
+    ].join('\n');
+  }
 
-    // 배경
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // 상단 타이틀
-    ctx.fillStyle = "#222";
-    ctx.font = "700 34px Pretendard, system-ui";
-    ctx.fillText("SellingForm Export Preview", 40, 80);
-
-    // 프로젝트 정보
-    ctx.fillStyle = "#555";
-    ctx.font = "500 18px Pretendard, system-ui";
-    const name = (_currentTemplate?.name || "Template") + " / " + (_currentProject?.id || "project");
-    ctx.fillText(name, 40, 120);
-
-    // 섹션 요약(데모)
-    ctx.fillStyle = "#f5f6ff";
-    ctx.fillRect(40, 160, 780, 170);
-
-    ctx.fillStyle = "#2c3a8c";
-    ctx.font = "700 20px Pretendard, system-ui";
-    ctx.fillText("Content Snapshot (demo)", 60, 200);
-
-    ctx.fillStyle = "#333";
-    ctx.font = "500 16px Pretendard, system-ui";
-    const sections = Object.keys(_currentProject?.content
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+})();
