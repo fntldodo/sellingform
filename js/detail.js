@@ -1,19 +1,19 @@
 // ============================================================
-// SellingForm v3.12 - Module A: Product Detail Builder
-// 함수 누락 해결 + 완전 작동 버전
+// SellingForm v3.13 - Module A: Product Detail Builder
+// 한/영 전환 완전 지원 (섹션 + 입력 필드)
 // ============================================================
 
 (function() {
     'use strict';
 
-const State = {
-    currentTemplate: 'beauty_01',
-    currentSection: 'hero',
-    projectData: null,
-    projectId: null,
-    isModified: false,
-    currentLang: 'ko'
-};
+    const State = {
+        currentTemplate: 'beauty_01',
+        currentSection: 'hero',
+        projectData: null,
+        projectId: null,
+        isModified: false,
+        currentLang: 'ko'
+    };
 
     const TemplateSpec = {
         beauty_01: {
@@ -24,10 +24,33 @@ const State = {
                     nameEn: 'HERO',
                     icon: '🎯',
                     slots: {
-                        productName: { type: 'text', label: '제품명', required: true, maxLength: 30 },
-                        mainCopy: { type: 'text', label: '한줄 USP', required: true, maxLength: 50 },
-                        subCopy: { type: 'text', label: '서브 카피', required: true, maxLength: 60 },
-                        mainImage: { type: 'image', label: '메인 이미지', required: true }
+                        productName: { 
+                            type: 'text', 
+                            label: '제품명', 
+                            labelEn: 'Product Name',
+                            required: true, 
+                            maxLength: 30 
+                        },
+                        mainCopy: { 
+                            type: 'text', 
+                            label: '한줄 USP', 
+                            labelEn: 'Main Copy',
+                            required: true, 
+                            maxLength: 50 
+                        },
+                        subCopy: { 
+                            type: 'text', 
+                            label: '서브 카피', 
+                            labelEn: 'Sub Copy',
+                            required: true, 
+                            maxLength: 60 
+                        },
+                        mainImage: { 
+                            type: 'image', 
+                            label: '메인 이미지', 
+                            labelEn: 'Main Image',
+                            required: true 
+                        }
                     }
                 },
                 usp: {
@@ -35,12 +58,12 @@ const State = {
                     nameEn: 'USP-3',
                     icon: '⭐',
                     slots: {
-                        title1: { type: 'text', label: '제목 1', required: true, maxLength: 20 },
-                        desc1: { type: 'textarea', label: '설명 1', required: true, maxLength: 50 },
-                        title2: { type: 'text', label: '제목 2', required: true, maxLength: 20 },
-                        desc2: { type: 'textarea', label: '설명 2', required: true, maxLength: 50 },
-                        title3: { type: 'text', label: '제목 3', required: true, maxLength: 20 },
-                        desc3: { type: 'textarea', label: '설명 3', required: true, maxLength: 50 }
+                        title1: { type: 'text', label: '제목 1', labelEn: 'Title 1', required: true, maxLength: 20 },
+                        desc1: { type: 'textarea', label: '설명 1', labelEn: 'Description 1', required: true, maxLength: 50 },
+                        title2: { type: 'text', label: '제목 2', labelEn: 'Title 2', required: true, maxLength: 20 },
+                        desc2: { type: 'textarea', label: '설명 2', labelEn: 'Description 2', required: true, maxLength: 50 },
+                        title3: { type: 'text', label: '제목 3', labelEn: 'Title 3', required: true, maxLength: 20 },
+                        desc3: { type: 'textarea', label: '설명 3', labelEn: 'Description 3', required: true, maxLength: 50 }
                     }
                 },
                 price: {
@@ -48,17 +71,17 @@ const State = {
                     nameEn: 'PRICE',
                     icon: '💰',
                     slots: {
-                        priceText: { type: 'textarea', label: '가격 안내', required: false, maxLength: 100 }
+                        priceText: { type: 'textarea', label: '가격 안내', labelEn: 'Price Info', required: false, maxLength: 100 }
                     }
                 },
                 proof: {
                     name: '증거·후기',
-                     nameEn: 'PROOF',
+                    nameEn: 'PROOF',
                     icon: '✅',
                     slots: {
-                        review1: { type: 'text', label: '후기 요약 1', required: false, maxLength: 40 },
-                        review2: { type: 'text', label: '후기 요약 2', required: false, maxLength: 40 },
-                        certification: { type: 'text', label: '인증/테스트', required: false, maxLength: 50 }
+                        review1: { type: 'text', label: '후기 요약 1', labelEn: 'Review 1', required: false, maxLength: 40 },
+                        review2: { type: 'text', label: '후기 요약 2', labelEn: 'Review 2', required: false, maxLength: 40 },
+                        certification: { type: 'text', label: '인증/테스트', labelEn: 'Certification', required: false, maxLength: 50 }
                     }
                 },
                 detail: {
@@ -66,18 +89,18 @@ const State = {
                     nameEn: 'DETAIL',
                     icon: '📋',
                     slots: {
-                        detailImage: { type: 'image', label: '상세 이미지', required: false },
-                        detailText: { type: 'textarea', label: '설명 텍스트', required: false, maxLength: 200 }
+                        detailImage: { type: 'image', label: '상세 이미지', labelEn: 'Detail Image', required: false },
+                        detailText: { type: 'textarea', label: '설명 텍스트', labelEn: 'Description', required: false, maxLength: 200 }
                     }
                 },
                 howto: {
                     name: '사용 방법',
-                    nameEn: 'HOWTO',
+                    nameEn: 'HOW-TO',
                     icon: '📝',
                     slots: {
-                        step1Title: { type: 'text', label: '1단계', required: true, maxLength: 20 },
-                        step2Title: { type: 'text', label: '2단계', required: true, maxLength: 20 },
-                        step3Title: { type: 'text', label: '3단계', required: true, maxLength: 20 }
+                        step1Title: { type: 'text', label: '1단계', labelEn: 'Step 1', required: true, maxLength: 20 },
+                        step2Title: { type: 'text', label: '2단계', labelEn: 'Step 2', required: true, maxLength: 20 },
+                        step3Title: { type: 'text', label: '3단계', labelEn: 'Step 3', required: true, maxLength: 20 }
                     }
                 },
                 faq: {
@@ -85,16 +108,16 @@ const State = {
                     nameEn: 'FAQ',
                     icon: '❓',
                     slots: {
-                        q1: { type: 'text', label: '질문 1', required: false, maxLength: 50 },
-                        a1: { type: 'textarea', label: '답변 1', required: false, maxLength: 100 }
+                        q1: { type: 'text', label: '질문 1', labelEn: 'Question 1', required: false, maxLength: 50 },
+                        a1: { type: 'textarea', label: '답변 1', labelEn: 'Answer 1', required: false, maxLength: 100 }
                     }
                 },
                 shipping: {
                     name: '배송·교환',
-                     nameEn: 'SHIPPING',
+                    nameEn: 'SHIPPING',
                     icon: '🚚',
                     slots: {
-                        shipping: { type: 'textarea', label: '배송 안내', required: false, maxLength: 100 }
+                        shipping: { type: 'textarea', label: '배송 안내', labelEn: 'Shipping Info', required: false, maxLength: 100 }
                     }
                 },
                 brand: {
@@ -102,8 +125,8 @@ const State = {
                     nameEn: 'BRAND',
                     icon: '🏢',
                     slots: {
-                        intro1: { type: 'text', label: '브랜드 소개', required: true, maxLength: 50 },
-                        brandImage: { type: 'image', label: '대표 이미지', required: true }
+                        intro1: { type: 'text', label: '브랜드 소개', labelEn: 'Brand Intro', required: true, maxLength: 50 },
+                        brandImage: { type: 'image', label: '대표 이미지', labelEn: 'Brand Image', required: true }
                     }
                 }
             }
@@ -118,31 +141,32 @@ const State = {
         }
         
         const data = {};
-        for (const [sectionKey, sectionSpec] of Object.entries(template.sections)) {
+        for (const sectionKey in template.sections) {
             data[sectionKey] = {};
-            for (const [slotKey, slotSpec] of Object.entries(sectionSpec.slots)) {
+            for (const slotKey in template.sections[sectionKey].slots) {
+                const slotSpec = template.sections[sectionKey].slots[slotKey];
                 data[sectionKey][slotKey] = slotSpec.type === 'image' ? null : '';
             }
         }
 
         return {
             template: State.currentTemplate,
-            title: `새 상세페이지 - ${template.name}`,
-            data
+            title: '새 상세페이지 - ' + template.name,
+            data: data
         };
     }
 
-    document.addEventListener('DOMContentLoaded', async function() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const templateId = urlParams.get('template');
-        const projectId = urlParams.get('id');
+    document.addEventListener('DOMContentLoaded', function() {
+        var urlParams = new URLSearchParams(window.location.search);
+        var templateId = urlParams.get('template');
+        var projectId = urlParams.get('id');
 
         if (templateId && TemplateSpec[templateId]) {
             State.currentTemplate = templateId;
         }
 
         if (projectId) {
-            await loadProject(parseInt(projectId));
+            loadProject(parseInt(projectId));
         } else {
             State.projectData = createEmptyProject();
         }
@@ -153,42 +177,45 @@ const State = {
         renderPreview();
     });
 
-function renderSectionButtons() {
-    const template = TemplateSpec[State.currentTemplate];
-    const sectionNav = document.querySelector('.section-nav');
-    
-    if (!sectionNav) return;
-    
-    sectionNav.innerHTML = '';
-    
-    for (const [sectionKey, sectionSpec] of Object.entries(template.sections)) {
-        const btn = document.createElement('button');
-        btn.className = 'section-btn';
-        btn.dataset.section = sectionKey;
+    function renderSectionButtons() {
+        const template = TemplateSpec[State.currentTemplate];
+        const sectionNav = document.querySelector('.section-nav');
         
-        const isCompleted = checkSectionCompleted(sectionKey, sectionSpec);
-        const hasRequired = checkSectionHasRequired(sectionSpec);
+        if (!sectionNav) return;
         
-        let statusIcon = '';
-        if (isCompleted) {
-            statusIcon = ' ✓';
-            btn.classList.add('completed');
-        } else if (hasRequired) {
-            statusIcon = ' !';
-            btn.classList.add('required');
+        sectionNav.innerHTML = '';
+        
+        for (const sectionKey in template.sections) {
+            const sectionSpec = template.sections[sectionKey];
+            const btn = document.createElement('button');
+            btn.className = 'section-btn';
+            btn.dataset.section = sectionKey;
+            
+            const isCompleted = checkSectionCompleted(sectionKey, sectionSpec);
+            const hasRequired = checkSectionHasRequired(sectionSpec);
+            
+            let statusIcon = '';
+            if (isCompleted) {
+                statusIcon = ' ✓';
+                btn.classList.add('completed');
+            } else if (hasRequired) {
+                statusIcon = ' !';
+                btn.classList.add('required');
+            }
+            
+            const displayName = State.currentLang === 'ko' ? sectionSpec.name : sectionSpec.nameEn;
+            btn.innerHTML = sectionSpec.icon + ' ' + displayName + statusIcon;
+            
+            if (sectionKey === State.currentSection) {
+                btn.classList.add('active');
+            }
+            
+            btn.addEventListener('click', function() {
+                selectSection(sectionKey);
+            });
+            sectionNav.appendChild(btn);
         }
-        
-        const displayName = State.currentLang === 'ko' ? sectionSpec.name : sectionSpec.nameEn;
-        btn.innerHTML = `${sectionSpec.icon} ${displayName}${statusIcon}`;
-        
-        if (sectionKey === State.currentSection) {
-            btn.classList.add('active');
-        }
-        
-        btn.addEventListener('click', () => selectSection(sectionKey));
-        sectionNav.appendChild(btn);
     }
-}
 
     function checkSectionCompleted(sectionKey, sectionSpec) {
         if (!State.projectData || !State.projectData.data) return false;
@@ -199,7 +226,8 @@ function renderSectionButtons() {
         const hasRequiredSlots = checkSectionHasRequired(sectionSpec);
         if (!hasRequiredSlots) return false;
 
-        for (const [slotKey, slotSpec] of Object.entries(sectionSpec.slots)) {
+        for (const slotKey in sectionSpec.slots) {
+            const slotSpec = sectionSpec.slots[slotKey];
             if (slotSpec.required) {
                 const value = sectionData[slotKey];
                 if (!value || (typeof value === 'string' && value.trim() === '')) {
@@ -211,8 +239,8 @@ function renderSectionButtons() {
     }
 
     function checkSectionHasRequired(sectionSpec) {
-        for (const slotSpec of Object.values(sectionSpec.slots)) {
-            if (slotSpec.required) return true;
+        for (const slotKey in sectionSpec.slots) {
+            if (sectionSpec.slots[slotKey].required) return true;
         }
         return false;
     }
@@ -226,15 +254,20 @@ function renderSectionButtons() {
         
         const btnToggleLang = document.getElementById('btnToggleLang');
         if (btnToggleLang) {
-            btnToggleLang.addEventListener('click', () => {
+            btnToggleLang.addEventListener('click', function() {
                 State.currentLang = State.currentLang === 'ko' ? 'en' : 'ko';
                 btnToggleLang.classList.remove('active-ko', 'active-en');
-                if (State.currentLang === 'ko') {
-                    btnToggleLang.classList.add('active-ko');
-                } else {
-                    btnToggleLang.classList.add('active-en');
-                }
+                btnToggleLang.classList.add(State.currentLang === 'ko' ? 'active-ko' : 'active-en');
+                
                 renderSectionButtons();
+                renderSectionEditor(State.currentSection);
+                
+                if (window.SellingForm && window.SellingForm.Toast) {
+                    window.SellingForm.Toast.show(
+                        State.currentLang === 'ko' ? '한글 모드로 전환됨' : 'English mode activated',
+                        1500
+                    );
+                }
             });
             btnToggleLang.classList.add('active-ko');
         }
@@ -243,8 +276,10 @@ function renderSectionButtons() {
     function selectSection(sectionKey) {
         State.currentSection = sectionKey;
 
-        document.querySelectorAll('.section-btn').forEach(btn => btn.classList.remove('active'));
-        const activeBtn = document.querySelector(`[data-section="${sectionKey}"]`);
+        document.querySelectorAll('.section-btn').forEach(function(btn) {
+            btn.classList.remove('active');
+        });
+        const activeBtn = document.querySelector('[data-section="' + sectionKey + '"]');
         if (activeBtn) activeBtn.classList.add('active');
 
         renderSectionEditor(sectionKey);
@@ -262,10 +297,12 @@ function renderSectionButtons() {
         editorContainer.innerHTML = '';
 
         const sectionTitle = document.createElement('h3');
-        sectionTitle.textContent = `${sectionSpec.icon} ${sectionSpec.name}`;
+        const displayName = State.currentLang === 'ko' ? sectionSpec.name : sectionSpec.nameEn;
+        sectionTitle.textContent = sectionSpec.icon + ' ' + displayName;
         editorContainer.appendChild(sectionTitle);
 
-        for (const [slotKey, slotSpec] of Object.entries(sectionSpec.slots)) {
+        for (const slotKey in sectionSpec.slots) {
+            const slotSpec = sectionSpec.slots[slotKey];
             const slotItem = createSlotItem(slotKey, slotSpec, sectionData[slotKey], sectionKey);
             editorContainer.appendChild(slotItem);
         }
@@ -279,7 +316,8 @@ function renderSectionButtons() {
         slotLabel.className = 'slot-label';
         
         const labelText = document.createElement('span');
-        labelText.textContent = slotSpec.label;
+        const displayLabel = State.currentLang === 'ko' ? slotSpec.label : slotSpec.labelEn;
+        labelText.textContent = displayLabel;
         slotLabel.appendChild(labelText);
 
         if (slotSpec.required) {
@@ -298,17 +336,27 @@ function renderSectionButtons() {
             inputElement.type = 'text';
             inputElement.className = 'slot-input';
             inputElement.value = currentValue || '';
-            inputElement.placeholder = slotSpec.label;
+            const placeholderText = State.currentLang === 'ko' 
+                ? slotSpec.label + ' 입력'
+                : 'Enter ' + slotSpec.labelEn;
+            inputElement.placeholder = placeholderText;
             if (slotSpec.maxLength) inputElement.maxLength = slotSpec.maxLength;
-            inputElement.addEventListener('input', () => updateSlotData(sectionKey, slotKey, inputElement.value));
+            inputElement.addEventListener('input', function() {
+                updateSlotData(sectionKey, slotKey, inputElement.value);
+            });
 
         } else if (slotSpec.type === 'textarea') {
             inputElement = document.createElement('textarea');
             inputElement.className = 'slot-input slot-textarea';
             inputElement.value = currentValue || '';
-            inputElement.placeholder = slotSpec.label;
+            const placeholderText = State.currentLang === 'ko' 
+                ? slotSpec.label + ' 입력'
+                : 'Enter ' + slotSpec.labelEn;
+            inputElement.placeholder = placeholderText;
             if (slotSpec.maxLength) inputElement.maxLength = slotSpec.maxLength;
-            inputElement.addEventListener('input', () => updateSlotData(sectionKey, slotKey, inputElement.value));
+            inputElement.addEventListener('input', function() {
+                updateSlotData(sectionKey, slotKey, inputElement.value);
+            });
 
         } else if (slotSpec.type === 'image') {
             inputElement = createImageUploadBox(slotKey, currentValue, sectionKey);
@@ -329,15 +377,20 @@ function renderSectionButtons() {
             container.appendChild(img);
 
             const btn = document.createElement('button');
-            btn.textContent = '이미지 변경';
+            btn.textContent = State.currentLang === 'ko' ? '이미지 변경' : 'Change Image';
             btn.className = 'btn-secondary';
-            btn.addEventListener('click', () => triggerImageUpload(sectionKey, slotKey));
+            btn.addEventListener('click', function() {
+                triggerImageUpload(sectionKey, slotKey);
+            });
             container.appendChild(btn);
         } else {
             const uploadBox = document.createElement('div');
             uploadBox.className = 'image-upload-box';
-            uploadBox.innerHTML = '<div style="color: #999; font-size: 2rem;">📷</div><p style="color: #666;">클릭하여 이미지 업로드</p>';
-            uploadBox.addEventListener('click', () => triggerImageUpload(sectionKey, slotKey));
+            const uploadText = State.currentLang === 'ko' ? '클릭하여 이미지 업로드' : 'Click to Upload Image';
+            uploadBox.innerHTML = '<div style="color: #999; font-size: 2rem;">📷</div><p style="color: #666;">' + uploadText + '</p>';
+            uploadBox.addEventListener('click', function() {
+                triggerImageUpload(sectionKey, slotKey);
+            });
             container.appendChild(uploadBox);
         }
 
@@ -350,7 +403,7 @@ function renderSectionButtons() {
         input.accept = 'image/*';
         input.style.display = 'none';
 
-        input.addEventListener('change', (e) => {
+        input.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) handleImageUpload(file, sectionKey, slotKey);
         });
@@ -367,7 +420,7 @@ function renderSectionButtons() {
         }
 
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = function(e) {
             updateSlotData(sectionKey, slotKey, e.target.result);
             renderSectionEditor(sectionKey);
             renderPreview();
@@ -397,17 +450,17 @@ function renderSectionButtons() {
         ctx.textAlign = 'center';
 
         const heroData = State.projectData.data.hero;
-        if (heroData?.productName) {
+        if (heroData && heroData.productName) {
             ctx.fillText(heroData.productName, 430, 50);
         }
-        if (heroData?.mainCopy) {
+        if (heroData && heroData.mainCopy) {
             ctx.font = '24px Arial';
             ctx.fillText(heroData.mainCopy, 430, 110);
         }
     }
 
-    async function saveProject() {
-        const title = State.projectData.data.hero?.productName || '제목 없음';
+    function saveProject() {
+        const title = (State.projectData.data.hero && State.projectData.data.hero.productName) || '제목 없음';
         
         const itemData = {
             type: 'detail',
@@ -416,38 +469,48 @@ function renderSectionButtons() {
             data: State.projectData
         };
 
-        try {
+        if (window.SellingForm && window.SellingForm.DB) {
             if (State.projectId) {
-                await window.SellingForm.DB.updateItem(State.projectId, itemData);
-                alert('저장되었습니다!');
+                window.SellingForm.DB.updateItem(State.projectId, itemData).then(function() {
+                    alert('저장되었습니다!');
+                    State.isModified = false;
+                }).catch(function(error) {
+                    alert('저장 실패: ' + error.message);
+                });
             } else {
-                const id = await window.SellingForm.DB.addItem(itemData);
+                window.SellingForm.DB.addItem(itemData).then(function(id) {
+                    State.projectId = id;
+                    alert('프로젝트가 생성되었습니다!');
+                    State.isModified = false;
+                }).catch(function(error) {
+                    alert('저장 실패: ' + error.message);
+                });
+            }
+        }
+    }
+
+    function loadProject(id) {
+        if (window.SellingForm && window.SellingForm.DB) {
+            window.SellingForm.DB.getItem(id).then(function(item) {
+                if (!item) {
+                    alert('프로젝트를 찾을 수 없습니다.');
+                    return;
+                }
                 State.projectId = id;
-                alert('프로젝트가 생성되었습니다!');
-            }
-            State.isModified = false;
-        } catch (error) {
-            alert('저장 실패: ' + error.message);
+                State.projectData = item.data;
+                State.currentTemplate = item.data.template;
+                State.isModified = false;
+                
+                renderSectionButtons();
+                renderSectionEditor(State.currentSection);
+                renderPreview();
+            }).catch(function(error) {
+                alert('불러오기 실패: ' + error.message);
+            });
         }
     }
 
-    async function loadProject(id) {
-        try {
-            const item = await window.SellingForm.DB.getItem(id);
-            if (!item) {
-                alert('프로젝트를 찾을 수 없습니다.');
-                return;
-            }
-            State.projectId = id;
-            State.projectData = item.data;
-            State.currentTemplate = item.data.template;
-            State.isModified = false;
-        } catch (error) {
-            alert('불러오기 실패: ' + error.message);
-        }
-    }
-
-    window.addEventListener('beforeunload', (e) => {
+    window.addEventListener('beforeunload', function(e) {
         if (State.isModified) {
             e.preventDefault();
             e.returnValue = '';
@@ -460,7 +523,7 @@ function renderSectionButtons() {
         render: renderPreview
     };
 
-    window.closeAiModal = () => {
+    window.closeAiModal = function() {
         const modal = document.getElementById('aiModal');
         if (modal) modal.classList.remove('active');
     };
