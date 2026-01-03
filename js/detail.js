@@ -844,11 +844,32 @@
         return { render };
     })();
 
-    function renderPreview() {
+        function renderPreview() {
+        const canvas = document.getElementById('previewCanvas');
+        if (!canvas) return;
+
+        // 방어코드: 데이터가 없으면 레거시라도 안전하게 종료
+        if (!State.projectData || !State.projectData.data) {
+            renderPreviewLegacy();
+            return;
+        }
+
+        try {
+            PreviewRenderer.render(canvas, State.projectData, State.currentTemplate, State.currentLang);
+        } catch (err) {
+            console.error('renderPreview failed. fallback to legacy:', err);
+            renderPreviewLegacy();
+        }
+    }
+
+    // ✅ 레거시 렌더러 보존(롤백/디버깅용)
+    function renderPreviewLegacy() {
         const canvas = document.getElementById('previewCanvas');
         if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
         canvas.height = 5000;
 
         ctx.fillStyle = '#FFFFFF';
@@ -858,7 +879,7 @@
         ctx.font = 'bold 36px Arial';
         ctx.textAlign = 'center';
 
-        const heroData = State.projectData.data.hero;
+        const heroData = State.projectData && State.projectData.data ? State.projectData.data.hero : null;
         if (heroData && heroData.productName) {
             ctx.fillText(heroData.productName, 430, 50);
         }
