@@ -435,6 +435,415 @@
         renderSectionButtons();
     }
 
+        // ============================================================
+    // Preview Renderer (Codex-style)
+    // - 2-pass: measure -> render
+    // - image cache + async rerender (stale render guard)
+    // - defensive: never crash UI
+    // ============================================================
+
+    const PreviewRenderer = (function() {
+        /** @type {number} */
+        const CANVAS_WIDTH = 860;
+
+        /** @type {Map<string, Promise<HTMLImageElement|null>>} */
+        const IMAGE_PROMISE_CACHE = new Map();
+
+        /** @type {number} */
+        let renderSeq = 0;
+
+        /** @type {boolean} */
+        let rerenderQueued = false;
+
+        function getMeasureCtx() {
+            const c = document.createElement('canvas');
+            c.width = CANVAS_WIDTH;
+            c.height = 10;
+            const ctx = c.getContext('2d');
+            return ctx;
+        }
+
+        /**
+         * @param {string|null} src
+         * @returns {Promise<HTMLImageElement|null>}
+         */
+        function loadImage(src) {
+            const key = (typeof src === 'string') ? src : '';
+            if (!key) return Promise.resolve(null);
+
+            const cached = IMAGE_PROMISE_CACHE.get(key);
+            if (cached) return cached;
+
+            const p = new Promise((resolve) => {
+                try {
+                    const img = new Image();
+                    img.onload = () => resolve(img);
+                    img.onerror = () => resolve(null);
+                    img.src = key;
+                } catch (e) {
+                    resolve(null);
+                }
+            });
+
+            IMAGE_PROMISE_CACHE.set(key, p);
+            return p;
+        }
+
+        /**
+         * @param {CanvasRenderingContext2D} ctx
+         * @param {string} text
+         * @param {number} maxWidth
+         * @param {number} maxLines
+         * @returns {string[]}
+         */
+        function wrapLines(ctx, text, maxWidth, maxLines) {
+            const raw = (text == null) ? '' : String(text);
+            const t = raw.replace(/\s+/g, ' ').trim();
+            if (!t) return [];
+
+            const words = t.split(' ');
+            const useWordWrap = words.length > 1;
+
+            /** @type {string[]} */
+            const lines = [];
+            let current = '';
+
+            const pushLine = (line) => {
+                if (!line) return;
+                lines.push(line);
+            };
+
+            if (useWordWrap) {
+                for (let i = 0; i < words.length; i++) {
+                    const w = words[i];
+                    const candidate = current ? (current + ' ' + w) : w;
+                    if (ctx.measureText(candidate).width <= maxWidth) {
+                        current = candidate;
+                    } else {
+                        pushLine(current);
+                        current = w;
+
+                        if (lines.length >= maxLines) break;
+                    }
+                }
+                if (lines.length < maxLines) pushLine(current);
+            } else {
+                // Korean/No-space fallback: char wrapping
+                for (let i = 0; i < t.length; i++) {
+                    const ch = t[i];
+                    const candidate = current + ch;
+                    if (ctx.measureText(candidate).width <= maxWidth) {
+                        current = candidate;
+                    } else {
+                        pushLine(current);
+                        current = ch;
+
+                        if (lines.length >= maxLines) break;
+                    }
+                }
+                if (lines.length < maxLines) pushLine(current);
+            }
+
+            // Trim to maxLines with ellipsis
+            if (lines.length > maxLines) lines.length = maxLines;
+            if (lines.length === maxLines) {
+                const lastIdx = maxLines - 1;
+                lines[lastIdx] = ellipsisToFit(ctx, lines[lastIdx], maxWidth);
+            }
+
+            return lines;
+        }
+
+        /**
+         * @param {CanvasRenderingContext2D} ctx
+         * @param {string} text
+         * @param {number} maxWidth
+         * @returns {string}
+         */
+        function ellipsisToFit(ctx, text, maxWidth) {
+            const base = (text == null) ? '' : String(text);
+            if (ctx.measureText(base).width <= maxWidth) return base;
+
+            const ell = '…';
+            let s = base;
+            while (s.length > 0 && ctx.measureText(s + ell).width > maxWidth) {
+                s = s.slice(0, -1);
+            }
+            return s ? (s + ell) : ell;
+        }
+
+        /**
+         * @param {CanvasRenderingContext2D} ctx
+         * @param {number} x
+         * @param {number} y
+         * @param {number} w
+         * @param {number} h
+         * @param {number} r
+         */
+        function pathRoundRect(ctx, x, y, w, h, r) {
+            const rr = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+            ctx.beginPath();
+            ctx.moveTo(x + rr, y);
+            ctx.lineTo(x + w - rr, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+            ctx.lineTo(x + w, y + h - rr);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+            ctx.lineTo(x + rr, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+            ctx.lineTo(x, y + rr);
+            ctx.quadraticCurveTo(x, y, x + rr, y);
+            ctx.closePath();
+        }
+
+        /**
+         * @param {CanvasRenderingContext2D} ctx
+         * @param {HTMLImageElement} img
+         * @param {number} x
+         * @param {number} y
+         * @param {number} w
+         * @param {number} h
+         */
+        function drawImageCover(ctx, img, x, y, w, h) {
+            const iw = img.naturalWidth || img.width;
+            const ih = img.naturalHeight || img.height;
+            if (!iw || !ih) return;
+
+            const boxRatio = w / h;
+            const imgRatio = iw / ih;
+
+            if (imgRatio > boxRatio) {
+                // wider: crop left/right
+                const sH = ih;
+                const sW = sH * boxRatio;
+                const sx = (iw - sW) / 2;
+                ctx.drawImage(img, sx, 0, sW, sH, x, y, w, h);
+            } else {
+                // taller: crop top/bottom
+                const sW = iw;
+                const sH = sW / boxRatio;
+                const sy = (ih - sH) / 2;
+                ctx.drawImage(img, 0, sy, sW, sH, x, y, w, h);
+            }
+        }
+
+        /**
+         * Measure HERO layout height (pass 1)
+         * @param {CanvasRenderingContext2D} mctx
+         * @param {any} heroData
+         * @returns {{ height:number, imageBox:{x:number,y:number,w:number,h:number,r:number}, text:{xCenter:number, yStart:number, maxW:number, lineHeights:{name:number, main:number, sub:number}, lines:{name:string[], main:string[], sub:string[]}} }}
+         */
+        function measureHero(mctx, heroData) {
+            const padTop = 26;
+            const padBottom = 34;
+
+            const imgPadX = 24;
+            const imgY = padTop;
+            const imgW = CANVAS_WIDTH - imgPadX * 2;
+            const imgH = 420;
+            const imgR = 16;
+
+            const gapAfterImage = 22;
+
+            const textMaxW = CANVAS_WIDTH - 64;
+            const xCenter = CANVAS_WIDTH / 2;
+
+            // Fonts (Pretendard if available, fallback)
+            const fontBase = "Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
+
+            // productName
+            mctx.font = `800 34px ${fontBase}`;
+            const nameLines = wrapLines(mctx, heroData && heroData.productName, textMaxW, 2);
+            const nameLH = 42;
+
+            // mainCopy
+            mctx.font = `700 24px ${fontBase}`;
+            const mainLines = wrapLines(mctx, heroData && heroData.mainCopy, textMaxW, 2);
+            const mainLH = 32;
+
+            // subCopy
+            mctx.font = `500 18px ${fontBase}`;
+            const subLines = wrapLines(mctx, heroData && heroData.subCopy, textMaxW, 2);
+            const subLH = 26;
+
+            const textYStart = imgY + imgH + gapAfterImage;
+
+            const textHeight =
+                (nameLines.length * nameLH) +
+                (mainLines.length * mainLH) +
+                (subLines.length * subLH) +
+                12; // small breathing space
+
+            const height = textYStart + textHeight + padBottom;
+
+            return {
+                height,
+                imageBox: { x: imgPadX, y: imgY, w: imgW, h: imgH, r: imgR },
+                text: {
+                    xCenter,
+                    yStart: textYStart,
+                    maxW: textMaxW,
+                    lineHeights: { name: nameLH, main: mainLH, sub: subLH },
+                    lines: { name: nameLines, main: mainLines, sub: subLines }
+                }
+            };
+        }
+
+        /**
+         * Render HERO (pass 2)
+         * @param {CanvasRenderingContext2D} ctx
+         * @param {any} heroData
+         * @param {ReturnType<typeof measureHero>} heroLayout
+         * @param {'ko'|'en'} lang
+         * @param {number} seq
+         * @param {Function} requestRerender
+         */
+        function drawHero(ctx, heroData, heroLayout, lang, seq, requestRerender) {
+            const fontBase = "Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
+            const { imageBox, text } = heroLayout;
+
+            // Image box background + border
+            ctx.save();
+            pathRoundRect(ctx, imageBox.x, imageBox.y, imageBox.w, imageBox.h, imageBox.r);
+            ctx.fillStyle = '#F3F4F6';
+            ctx.fill();
+            ctx.strokeStyle = '#E5E7EB';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.restore();
+
+            // Placeholder label
+            const placeholder = (lang === 'ko') ? '이미지를 업로드하면 여기에 표시됩니다' : 'Upload an image to display here';
+            ctx.fillStyle = '#6B7280';
+            ctx.font = `600 16px ${fontBase}`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(placeholder, imageBox.x + imageBox.w / 2, imageBox.y + imageBox.h / 2);
+
+            // If image exists, draw it (cover) asynchronously-safe
+            const src = heroData && heroData.mainImage ? heroData.mainImage : null;
+            if (src) {
+                loadImage(src).then((img) => {
+                    if (!img) return;
+                    // stale guard: ignore if newer render happened
+                    if (seq !== renderSeq) return;
+                    // re-render whole canvas once (safe & simple)
+                    requestRerender();
+                });
+            }
+
+            // Text
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+
+            let y = text.yStart;
+
+            // productName
+            ctx.fillStyle = '#111827';
+            ctx.font = `800 34px ${fontBase}`;
+            for (const line of text.lines.name) {
+                ctx.fillText(line, text.xCenter, y);
+                y += text.lineHeights.name;
+            }
+
+            // mainCopy
+            ctx.fillStyle = '#1F2937';
+            ctx.font = `700 24px ${fontBase}`;
+            for (const line of text.lines.main) {
+                ctx.fillText(line, text.xCenter, y);
+                y += text.lineHeights.main;
+            }
+
+            // subCopy
+            ctx.fillStyle = '#4B5563';
+            ctx.font = `500 18px ${fontBase}`;
+            for (const line of text.lines.sub) {
+                ctx.fillText(line, text.xCenter, y);
+                y += text.lineHeights.sub;
+            }
+
+            // If image is loaded, draw it on top of placeholder (cover + rounded clip)
+            const src2 = heroData && heroData.mainImage ? heroData.mainImage : null;
+            if (src2) {
+                const cachedPromise = IMAGE_PROMISE_CACHE.get(src2);
+                if (cachedPromise) {
+                    cachedPromise.then((img) => {
+                        if (!img) return;
+                        if (seq !== renderSeq) return;
+
+                        ctx.save();
+                        pathRoundRect(ctx, imageBox.x, imageBox.y, imageBox.w, imageBox.h, imageBox.r);
+                        ctx.clip();
+                        drawImageCover(ctx, img, imageBox.x, imageBox.y, imageBox.w, imageBox.h);
+                        ctx.restore();
+
+                        // subtle border after image
+                        ctx.save();
+                        pathRoundRect(ctx, imageBox.x, imageBox.y, imageBox.w, imageBox.h, imageBox.r);
+                        ctx.strokeStyle = '#E5E7EB';
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                        ctx.restore();
+                    });
+                }
+            }
+        }
+
+        /**
+         * Main entry
+         * @param {HTMLCanvasElement} canvas
+         * @param {{template:string, data:any}} projectData
+         * @param {string} templateId
+         * @param {'ko'|'en'} lang
+         */
+        function render(canvas, projectData, templateId, lang) {
+            if (!canvas || !projectData || !projectData.data) return;
+
+            const mctx = getMeasureCtx();
+            if (!mctx) return;
+
+            // 1) measure pass
+            const heroData = projectData.data.hero || {};
+            const heroLayout = measureHero(mctx, heroData);
+            const totalHeight = Math.max(600, Math.ceil(heroLayout.height));
+
+            // 2) render pass (set size first; resizing clears context)
+            canvas.width = CANVAS_WIDTH;
+            canvas.height = totalHeight;
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            // bump render sequence
+            renderSeq += 1;
+            const seq = renderSeq;
+
+            // background
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, CANVAS_WIDTH, totalHeight);
+
+            // safe rerender scheduler
+            const requestRerender = () => {
+                if (rerenderQueued) return;
+                rerenderQueued = true;
+                requestAnimationFrame(() => {
+                    rerenderQueued = false;
+                    // re-run with the latest projectData (will increment seq)
+                    try {
+                        render(canvas, projectData, templateId, lang);
+                    } catch (e) {
+                        // swallow to protect UI
+                        console.error('Preview rerender failed:', e);
+                    }
+                });
+            };
+
+            // draw hero (placeholder first, then image if cached/loaded)
+            drawHero(ctx, heroData, heroLayout, lang === 'en' ? 'en' : 'ko', seq, requestRerender);
+        }
+
+        return { render };
+    })();
+
     function renderPreview() {
         const canvas = document.getElementById('previewCanvas');
         if (!canvas) return;
