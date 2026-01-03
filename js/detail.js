@@ -435,527 +435,778 @@
         renderPreview();
         renderSectionButtons();
     }
+// ============================================================
+// Preview Renderer (Codex-style)
+// - 2-pass: measure -> render
+// - image cache + async rerender (stale render guard)
+// - defensive: never crash UI
+// - current: HERO + USP(3 cards) + PRICE + PROOF
+// ============================================================
 
-    // ============================================================
-    // Preview Renderer (Codex-style)
-    // - 2-pass: measure -> render
-    // - image cache + async rerender (stale render guard)
-    // - defensive: never crash UI
-    // - current: HERO + USP(3 cards)
-    // ============================================================
+const PreviewRenderer = (function() {
+    /** @type {number} */
+    const CANVAS_WIDTH = 860;
 
-    const PreviewRenderer = (function() {
-        /** @type {number} */
-        const CANVAS_WIDTH = 860;
+    /** @type {Map<string, Promise<HTMLImageElement|null>>} */
+    const IMAGE_PROMISE_CACHE = new Map();
 
-        /** @type {Map<string, Promise<HTMLImageElement|null>>} */
-        const IMAGE_PROMISE_CACHE = new Map();
+    /** @type {number} */
+    let renderSeq = 0;
 
-        /** @type {number} */
-        let renderSeq = 0;
+    /** @type {boolean} */
+    let rerenderQueued = false;
 
-        /** @type {boolean} */
-        let rerenderQueued = false;
+    function getMeasureCtx() {
+        const c = document.createElement('canvas');
+        c.width = CANVAS_WIDTH;
+        c.height = 10;
+        return c.getContext('2d');
+    }
 
-        function getMeasureCtx() {
-            const c = document.createElement('canvas');
-            c.width = CANVAS_WIDTH;
-            c.height = 10;
-            return c.getContext('2d');
+    /**
+     * @param {string|null} src
+     * @returns {Promise<HTMLImageElement|null>}
+     */
+    function loadImage(src) {
+        const key = (typeof src === 'string') ? src : '';
+        if (!key) return Promise.resolve(null);
+
+        const cached = IMAGE_PROMISE_CACHE.get(key);
+        if (cached) return cached;
+
+        const p = new Promise((resolve) => {
+            try {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = () => resolve(null);
+                img.src = key;
+            } catch (e) {
+                resolve(null);
+            }
+        });
+
+        IMAGE_PROMISE_CACHE.set(key, p);
+        return p;
+    }
+
+    /**
+     * @param {CanvasRenderingContext2D} ctx
+     * @param {string} text
+     * @param {number} maxWidth
+     * @param {number} maxLines
+     * @returns {string[]}
+     */
+    function wrapLines(ctx, text, maxWidth, maxLines) {
+        const raw = (text == null) ? '' : String(text);
+        const t = raw.replace(/\s+/g, ' ').trim();
+        if (!t) return [];
+
+        const words = t.split(' ');
+        const useWordWrap = words.length > 1;
+
+        /** @type {string[]} */
+        const lines = [];
+        let current = '';
+
+        const pushLine = (line) => {
+            if (!line) return;
+            lines.push(line);
+        };
+
+        if (useWordWrap) {
+            for (let i = 0; i < words.length; i++) {
+                const w = words[i];
+                const candidate = current ? (current + ' ' + w) : w;
+                if (ctx.measureText(candidate).width <= maxWidth) {
+                    current = candidate;
+                } else {
+                    pushLine(current);
+                    current = w;
+                    if (lines.length >= maxLines) break;
+                }
+            }
+            if (lines.length < maxLines) pushLine(current);
+        } else {
+            for (let i = 0; i < t.length; i++) {
+                const ch = t[i];
+                const candidate = current + ch;
+                if (ctx.measureText(candidate).width <= maxWidth) {
+                    current = candidate;
+                } else {
+                    pushLine(current);
+                    current = ch;
+                    if (lines.length >= maxLines) break;
+                }
+            }
+            if (lines.length < maxLines) pushLine(current);
         }
 
-        /**
-         * @param {string|null} src
-         * @returns {Promise<HTMLImageElement|null>}
-         */
-        function loadImage(src) {
-            const key = (typeof src === 'string') ? src : '';
-            if (!key) return Promise.resolve(null);
+        if (lines.length > maxLines) lines.length = maxLines;
+        if (lines.length === maxLines) {
+            const lastIdx = maxLines - 1;
+            lines[lastIdx] = ellipsisToFit(ctx, lines[lastIdx], maxWidth);
+        }
+        return lines;
+    }
 
-            const cached = IMAGE_PROMISE_CACHE.get(key);
-            if (cached) return cached;
+    /**
+     * @param {CanvasRenderingContext2D} ctx
+     * @param {string} text
+     * @param {number} maxWidth
+     * @returns {string}
+     */
+    function ellipsisToFit(ctx, text, maxWidth) {
+        const base = (text == null) ? '' : String(text);
+        if (ctx.measureText(base).width <= maxWidth) return base;
 
-            const p = new Promise((resolve) => {
-                try {
-                    const img = new Image();
-                    img.onload = () => resolve(img);
-                    img.onerror = () => resolve(null);
-                    img.src = key;
-                } catch (e) {
-                    resolve(null);
-                }
+        const ell = '…';
+        let s = base;
+        while (s.length > 0 && ctx.measureText(s + ell).width > maxWidth) {
+            s = s.slice(0, -1);
+        }
+        return s ? (s + ell) : ell;
+    }
+
+    /**
+     * @param {CanvasRenderingContext2D} ctx
+     * @param {number} x
+     * @param {number} y
+     * @param {number} w
+     * @param {number} h
+     * @param {number} r
+     */
+    function pathRoundRect(ctx, x, y, w, h, r) {
+        const rr = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+        ctx.beginPath();
+        ctx.moveTo(x + rr, y);
+        ctx.lineTo(x + w - rr, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+        ctx.lineTo(x + w, y + h - rr);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+        ctx.lineTo(x + rr, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+        ctx.lineTo(x, y + rr);
+        ctx.quadraticCurveTo(x, y, x + rr, y);
+        ctx.closePath();
+    }
+
+    /**
+     * @param {CanvasRenderingContext2D} ctx
+     * @param {HTMLImageElement} img
+     * @param {number} x
+     * @param {number} y
+     * @param {number} w
+     * @param {number} h
+     */
+    function drawImageCover(ctx, img, x, y, w, h) {
+        const iw = img.naturalWidth || img.width;
+        const ih = img.naturalHeight || img.height;
+        if (!iw || !ih) return;
+
+        const boxRatio = w / h;
+        const imgRatio = iw / ih;
+
+        if (imgRatio > boxRatio) {
+            const sH = ih;
+            const sW = sH * boxRatio;
+            const sx = (iw - sW) / 2;
+            ctx.drawImage(img, sx, 0, sW, sH, x, y, w, h);
+        } else {
+            const sW = iw;
+            const sH = sW / boxRatio;
+            const sy = (ih - sH) / 2;
+            ctx.drawImage(img, 0, sy, sW, sH, x, y, w, h);
+        }
+    }
+
+    /**
+     * @param {'ko'|'en'} lang
+     */
+    function i18n(lang) {
+        return {
+            // HERO
+            heroImagePlaceholder: (lang === 'en')
+                ? 'Upload an image to display here'
+                : '이미지를 업로드하면 여기에 표시됩니다',
+
+            // USP
+            uspTitle: '핵심 특징',
+            uspTitleEn: 'Key Benefits',
+            cardTitleFallback: (lang === 'en') ? 'Title' : '제목',
+            cardDescFallback: (lang === 'en') ? 'Description' : '설명',
+
+            // PRICE
+            priceTitle: '가격',
+            priceTitleEn: 'Price',
+            pricePlaceholder: (lang === 'en')
+                ? 'Enter price info to show here'
+                : '가격 안내를 입력하면 여기에 표시됩니다',
+
+            // PROOF
+            proofTitle: '증거·후기',
+            proofTitleEn: 'Proof',
+            reviewFallback: (lang === 'en') ? 'Add a review highlight' : '후기 요약을 입력하세요',
+            certLabel: (lang === 'en') ? 'Certification / Test' : '인증/테스트'
+        };
+    }
+
+    function drawDivider(ctx, y) {
+        ctx.save();
+        ctx.strokeStyle = '#F3F4F6';
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(24, y);
+        ctx.lineTo(CANVAS_WIDTH - 24, y);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // ------------------------------------------------------------
+    // MEASURE PASS
+    // ------------------------------------------------------------
+
+    function measureHero(mctx, heroData) {
+        const padTop = 26;
+        const padBottom = 34;
+
+        const imgPadX = 24;
+        const imgY = padTop;
+        const imgW = CANVAS_WIDTH - imgPadX * 2;
+        const imgH = 420;
+        const imgR = 16;
+
+        const gapAfterImage = 22;
+
+        const textMaxW = CANVAS_WIDTH - 64;
+        const xCenter = CANVAS_WIDTH / 2;
+
+        const fontBase = "Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
+
+        mctx.font = `800 34px ${fontBase}`;
+        const nameLines = wrapLines(mctx, heroData && heroData.productName, textMaxW, 2);
+        const nameLH = 42;
+
+        mctx.font = `700 24px ${fontBase}`;
+        const mainLines = wrapLines(mctx, heroData && heroData.mainCopy, textMaxW, 2);
+        const mainLH = 32;
+
+        mctx.font = `500 18px ${fontBase}`;
+        const subLines = wrapLines(mctx, heroData && heroData.subCopy, textMaxW, 2);
+        const subLH = 26;
+
+        const textYStart = imgY + imgH + gapAfterImage;
+
+        const textHeight =
+            (nameLines.length * nameLH) +
+            (mainLines.length * mainLH) +
+            (subLines.length * subLH) +
+            12;
+
+        const height = textYStart + textHeight + padBottom;
+
+        return {
+            height,
+            imageBox: { x: imgPadX, y: imgY, w: imgW, h: imgH, r: imgR },
+            text: {
+                xCenter,
+                yStart: textYStart,
+                maxW: textMaxW,
+                lineHeights: { name: nameLH, main: mainLH, sub: subLH },
+                lines: { name: nameLines, main: mainLines, sub: subLines }
+            }
+        };
+    }
+
+    function measureUSP(mctx, uspData, startY, lang) {
+        const t = i18n(lang);
+        const fontBase = "Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
+
+        const padX = 24;
+        const headerTopPad = 18;
+        const headerGap = 14;
+
+        const cardGap = 16;
+        const cardR = 14;
+
+        const cardW = (CANVAS_WIDTH - padX * 2 - cardGap * 2) / 3;
+        const cardX1 = padX;
+        const cardX2 = padX + cardW + cardGap;
+        const cardX3 = padX + (cardW + cardGap) * 2;
+
+        const headerY = startY + headerTopPad;
+
+        mctx.font = `800 22px ${fontBase}`;
+        const headerText = (lang === 'en') ? t.uspTitleEn : t.uspTitle;
+        const headerH = 30;
+
+        const cardsY = headerY + headerH + headerGap;
+
+        const innerPad = 16;
+        const titleMaxW = cardW - innerPad * 2;
+        const descMaxW = cardW - innerPad * 2;
+
+        /** @type {Array<{titleLines:string[], descLines:string[], h:number}>} */
+        const measured = [];
+
+        for (let i = 1; i <= 3; i++) {
+            const titleKey = `title${i}`;
+            const descKey = `desc${i}`;
+            const titleVal = (uspData && uspData[titleKey]) ? uspData[titleKey] : `${t.cardTitleFallback} ${i}`;
+            const descVal = (uspData && uspData[descKey]) ? uspData[descKey] : `${t.cardDescFallback} ${i}`;
+
+            mctx.font = `800 18px ${fontBase}`;
+            const titleLines = wrapLines(mctx, titleVal, titleMaxW, 2);
+            const titleLH = 26;
+
+            mctx.font = `500 15px ${fontBase}`;
+            const descLines = wrapLines(mctx, descVal, descMaxW, 4);
+            const descLH = 22;
+
+            const h = (titleLines.length * titleLH) + 8 + (descLines.length * descLH) + innerPad * 2;
+            measured.push({ titleLines, descLines, h });
+        }
+
+        const maxCardH = Math.max(140, ...measured.map(m => m.h));
+        const blockHeight = (cardsY - startY) + maxCardH + 26;
+
+        const cards = [
+            { x: cardX1, y: cardsY, w: cardW, h: maxCardH, r: cardR, titleLines: measured[0].titleLines, descLines: measured[0].descLines },
+            { x: cardX2, y: cardsY, w: cardW, h: maxCardH, r: cardR, titleLines: measured[1].titleLines, descLines: measured[1].descLines },
+            { x: cardX3, y: cardsY, w: cardW, h: maxCardH, r: cardR, titleLines: measured[2].titleLines, descLines: measured[2].descLines }
+        ];
+
+        const blockBottom = startY + blockHeight;
+
+        return { y: startY, height: blockHeight, header: { x: padX, y: headerY, text: headerText }, cards, blockBottom };
+    }
+
+    function measurePrice(mctx, priceData, startY, lang) {
+        const t = i18n(lang);
+        const fontBase = "Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
+
+        const padX = 24;
+        const headerTopPad = 18;
+        const headerGap = 14;
+
+        const headerY = startY + headerTopPad;
+        mctx.font = `800 22px ${fontBase}`;
+        const headerText = (lang === 'en') ? t.priceTitleEn : t.priceTitle;
+        const headerH = 30;
+
+        const boxY = headerY + headerH + headerGap;
+        const boxW = CANVAS_WIDTH - padX * 2;
+        const boxR = 14;
+
+        const innerPad = 16;
+        const textMaxW = boxW - innerPad * 2;
+
+        const value = (priceData && priceData.priceText) ? priceData.priceText : '';
+        mctx.font = `500 16px ${fontBase}`;
+        const lines = wrapLines(mctx, value || t.pricePlaceholder, textMaxW, 6);
+        const lh = 24;
+
+        const boxH = Math.max(72, innerPad * 2 + lines.length * lh);
+        const blockHeight = (boxY - startY) + boxH + 26;
+        const blockBottom = startY + blockHeight;
+
+        return {
+            y: startY,
+            height: blockHeight,
+            header: { x: padX, y: headerY, text: headerText },
+            box: { x: padX, y: boxY, w: boxW, h: boxH, r: boxR, innerPad, lines, lh, isPlaceholder: !value }
+            ,
+            blockBottom
+        };
+    }
+
+    function measureProof(mctx, proofData, startY, lang) {
+        const t = i18n(lang);
+        const fontBase = "Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
+
+        const padX = 24;
+        const headerTopPad = 18;
+        const headerGap = 14;
+
+        const headerY = startY + headerTopPad;
+        mctx.font = `800 22px ${fontBase}`;
+        const headerText = (lang === 'en') ? t.proofTitleEn : t.proofTitle;
+        const headerH = 30;
+
+        const boxY = headerY + headerH + headerGap;
+        const boxW = CANVAS_WIDTH - padX * 2;
+        const boxR = 14;
+
+        const innerPad = 16;
+        const textMaxW = boxW - innerPad * 2 - 22; // left marker area
+
+        const r1 = (proofData && proofData.review1) ? proofData.review1 : '';
+        const r2 = (proofData && proofData.review2) ? proofData.review2 : '';
+        const cert = (proofData && proofData.certification) ? proofData.certification : '';
+
+        mctx.font = `600 16px ${fontBase}`;
+        const r1Lines = wrapLines(mctx, r1 || t.reviewFallback, textMaxW, 2);
+        const r2Lines = wrapLines(mctx, r2 || t.reviewFallback, textMaxW, 2);
+        const rLH = 24;
+
+        mctx.font = `500 14px ${fontBase}`;
+        const certLines = cert ? wrapLines(mctx, `${t.certLabel}: ${cert}`, boxW - innerPad * 2, 2) : [];
+        const cLH = 20;
+
+        const contentH =
+            (r1Lines.length * rLH) +
+            10 +
+            (r2Lines.length * rLH) +
+            (certLines.length ? (12 + certLines.length * cLH) : 0);
+
+        const boxH = Math.max(110, innerPad * 2 + contentH);
+        const blockHeight = (boxY - startY) + boxH + 26;
+        const blockBottom = startY + blockHeight;
+
+        return {
+            y: startY,
+            height: blockHeight,
+            header: { x: padX, y: headerY, text: headerText },
+            box: {
+                x: padX,
+                y: boxY,
+                w: boxW,
+                h: boxH,
+                r: boxR,
+                innerPad,
+                r1Lines,
+                r2Lines,
+                rLH,
+                certLines,
+                cLH,
+                isR1Placeholder: !r1,
+                isR2Placeholder: !r2
+            },
+            blockBottom
+        };
+    }
+
+    // ------------------------------------------------------------
+    // RENDER PASS
+    // ------------------------------------------------------------
+
+    function drawHero(ctx, heroData, heroLayout, lang, seq, requestRerender) {
+        const t = i18n(lang);
+        const fontBase = "Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
+        const { imageBox, text } = heroLayout;
+
+        ctx.save();
+        pathRoundRect(ctx, imageBox.x, imageBox.y, imageBox.w, imageBox.h, imageBox.r);
+        ctx.fillStyle = '#F3F4F6';
+        ctx.fill();
+        ctx.strokeStyle = '#E5E7EB';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.fillStyle = '#6B7280';
+        ctx.font = `600 16px ${fontBase}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(t.heroImagePlaceholder, imageBox.x + imageBox.w / 2, imageBox.y + imageBox.h / 2);
+
+        const src = heroData && heroData.mainImage ? heroData.mainImage : null;
+        if (src) {
+            loadImage(src).then((img) => {
+                if (!img) return;
+                if (seq !== renderSeq) return;
+                requestRerender();
             });
-
-            IMAGE_PROMISE_CACHE.set(key, p);
-            return p;
         }
 
-        /**
-         * @param {CanvasRenderingContext2D} ctx
-         * @param {string} text
-         * @param {number} maxWidth
-         * @param {number} maxLines
-         * @returns {string[]}
-         */
-        function wrapLines(ctx, text, maxWidth, maxLines) {
-            const raw = (text == null) ? '' : String(text);
-            const t = raw.replace(/\s+/g, ' ').trim();
-            if (!t) return [];
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
 
-            const words = t.split(' ');
-            const useWordWrap = words.length > 1;
+        let y = text.yStart;
 
-            /** @type {string[]} */
-            const lines = [];
-            let current = '';
-
-            const pushLine = (line) => {
-                if (!line) return;
-                lines.push(line);
-            };
-
-            if (useWordWrap) {
-                for (let i = 0; i < words.length; i++) {
-                    const w = words[i];
-                    const candidate = current ? (current + ' ' + w) : w;
-                    if (ctx.measureText(candidate).width <= maxWidth) {
-                        current = candidate;
-                    } else {
-                        pushLine(current);
-                        current = w;
-                        if (lines.length >= maxLines) break;
-                    }
-                }
-                if (lines.length < maxLines) pushLine(current);
-            } else {
-                for (let i = 0; i < t.length; i++) {
-                    const ch = t[i];
-                    const candidate = current + ch;
-                    if (ctx.measureText(candidate).width <= maxWidth) {
-                        current = candidate;
-                    } else {
-                        pushLine(current);
-                        current = ch;
-                        if (lines.length >= maxLines) break;
-                    }
-                }
-                if (lines.length < maxLines) pushLine(current);
-            }
-
-            if (lines.length > maxLines) lines.length = maxLines;
-            if (lines.length === maxLines) {
-                const lastIdx = maxLines - 1;
-                lines[lastIdx] = ellipsisToFit(ctx, lines[lastIdx], maxWidth);
-            }
-            return lines;
+        ctx.fillStyle = '#111827';
+        ctx.font = `800 34px ${fontBase}`;
+        for (const line of text.lines.name) {
+            ctx.fillText(line, text.xCenter, y);
+            y += text.lineHeights.name;
         }
 
-        /**
-         * @param {CanvasRenderingContext2D} ctx
-         * @param {string} text
-         * @param {number} maxWidth
-         * @returns {string}
-         */
-        function ellipsisToFit(ctx, text, maxWidth) {
-            const base = (text == null) ? '' : String(text);
-            if (ctx.measureText(base).width <= maxWidth) return base;
-
-            const ell = '…';
-            let s = base;
-            while (s.length > 0 && ctx.measureText(s + ell).width > maxWidth) {
-                s = s.slice(0, -1);
-            }
-            return s ? (s + ell) : ell;
+        ctx.fillStyle = '#1F2937';
+        ctx.font = `700 24px ${fontBase}`;
+        for (const line of text.lines.main) {
+            ctx.fillText(line, text.xCenter, y);
+            y += text.lineHeights.main;
         }
 
-        /**
-         * @param {CanvasRenderingContext2D} ctx
-         * @param {number} x
-         * @param {number} y
-         * @param {number} w
-         * @param {number} h
-         * @param {number} r
-         */
-        function pathRoundRect(ctx, x, y, w, h, r) {
-            const rr = Math.max(0, Math.min(r, Math.min(w, h) / 2));
-            ctx.beginPath();
-            ctx.moveTo(x + rr, y);
-            ctx.lineTo(x + w - rr, y);
-            ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
-            ctx.lineTo(x + w, y + h - rr);
-            ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
-            ctx.lineTo(x + rr, y + h);
-            ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
-            ctx.lineTo(x, y + rr);
-            ctx.quadraticCurveTo(x, y, x + rr, y);
-            ctx.closePath();
+        ctx.fillStyle = '#4B5563';
+        ctx.font = `500 18px ${fontBase}`;
+        for (const line of text.lines.sub) {
+            ctx.fillText(line, text.xCenter, y);
+            y += text.lineHeights.sub;
         }
 
-        /**
-         * @param {CanvasRenderingContext2D} ctx
-         * @param {HTMLImageElement} img
-         * @param {number} x
-         * @param {number} y
-         * @param {number} w
-         * @param {number} h
-         */
-        function drawImageCover(ctx, img, x, y, w, h) {
-            const iw = img.naturalWidth || img.width;
-            const ih = img.naturalHeight || img.height;
-            if (!iw || !ih) return;
+        if (src) {
+            const cachedPromise = IMAGE_PROMISE_CACHE.get(src);
+            if (cachedPromise) {
+                cachedPromise.then((img) => {
+                    if (!img) return;
+                    if (seq !== renderSeq) return;
 
-            const boxRatio = w / h;
-            const imgRatio = iw / ih;
+                    ctx.save();
+                    pathRoundRect(ctx, imageBox.x, imageBox.y, imageBox.w, imageBox.h, imageBox.r);
+                    ctx.clip();
+                    drawImageCover(ctx, img, imageBox.x, imageBox.y, imageBox.w, imageBox.h);
+                    ctx.restore();
 
-            if (imgRatio > boxRatio) {
-                const sH = ih;
-                const sW = sH * boxRatio;
-                const sx = (iw - sW) / 2;
-                ctx.drawImage(img, sx, 0, sW, sH, x, y, w, h);
-            } else {
-                const sW = iw;
-                const sH = sW / boxRatio;
-                const sy = (ih - sH) / 2;
-                ctx.drawImage(img, 0, sy, sW, sH, x, y, w, h);
+                    ctx.save();
+                    pathRoundRect(ctx, imageBox.x, imageBox.y, imageBox.w, imageBox.h, imageBox.r);
+                    ctx.strokeStyle = '#E5E7EB';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                    ctx.restore();
+                });
             }
         }
+    }
 
-        /**
-         * @param {'ko'|'en'} lang
-         * @returns {{ heroImagePlaceholder:string, uspTitle:string, uspTitleEn:string, cardTitleFallback:string, cardDescFallback:string }}
-         */
-        function i18n(lang) {
-            return {
-                heroImagePlaceholder: (lang === 'en')
-                    ? 'Upload an image to display here'
-                    : '이미지를 업로드하면 여기에 표시됩니다',
-                uspTitle: '핵심 특징',
-                uspTitleEn: 'Key Benefits',
-                cardTitleFallback: (lang === 'en') ? 'Title' : '제목',
-                cardDescFallback: (lang === 'en') ? 'Description' : '설명'
-            };
-        }
+    function drawUSP(ctx, uspLayout) {
+        const fontBase = "Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
 
-        // -----------------------
-        // MEASURE PASS
-        // -----------------------
+        ctx.save();
+        ctx.fillStyle = '#111827';
+        ctx.font = `800 22px ${fontBase}`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(uspLayout.header.text, uspLayout.header.x, uspLayout.header.y);
+        ctx.restore();
 
-        function measureHero(mctx, heroData) {
-            const padTop = 26;
-            const padBottom = 34;
-
-            const imgPadX = 24;
-            const imgY = padTop;
-            const imgW = CANVAS_WIDTH - imgPadX * 2;
-            const imgH = 420;
-            const imgR = 16;
-
-            const gapAfterImage = 22;
-
-            const textMaxW = CANVAS_WIDTH - 64;
-            const xCenter = CANVAS_WIDTH / 2;
-
-            const fontBase = "Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
-
-            mctx.font = `800 34px ${fontBase}`;
-            const nameLines = wrapLines(mctx, heroData && heroData.productName, textMaxW, 2);
-            const nameLH = 42;
-
-            mctx.font = `700 24px ${fontBase}`;
-            const mainLines = wrapLines(mctx, heroData && heroData.mainCopy, textMaxW, 2);
-            const mainLH = 32;
-
-            mctx.font = `500 18px ${fontBase}`;
-            const subLines = wrapLines(mctx, heroData && heroData.subCopy, textMaxW, 2);
-            const subLH = 26;
-
-            const textYStart = imgY + imgH + gapAfterImage;
-
-            const textHeight =
-                (nameLines.length * nameLH) +
-                (mainLines.length * mainLH) +
-                (subLines.length * subLH) +
-                12;
-
-            const height = textYStart + textHeight + padBottom;
-
-            return {
-                height,
-                imageBox: { x: imgPadX, y: imgY, w: imgW, h: imgH, r: imgR },
-                text: {
-                    xCenter,
-                    yStart: textYStart,
-                    maxW: textMaxW,
-                    lineHeights: { name: nameLH, main: mainLH, sub: subLH },
-                    lines: { name: nameLines, main: mainLines, sub: subLines }
-                }
-            };
-        }
-
-        function measureUSP(mctx, uspData, startY, lang) {
-            const t = i18n(lang);
-            const fontBase = "Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
-
-            const padX = 24;
-            const headerTopPad = 18;
-            const headerGap = 14;
-
-            const cardGap = 16;
-            const cardR = 14;
-
-            const cardW = (CANVAS_WIDTH - padX * 2 - cardGap * 2) / 3;
-            const cardX1 = padX;
-            const cardX2 = padX + cardW + cardGap;
-            const cardX3 = padX + (cardW + cardGap) * 2;
-
-            const headerY = startY + headerTopPad;
-
-            mctx.font = `800 22px ${fontBase}`;
-            const headerText = (lang === 'en') ? t.uspTitleEn : t.uspTitle;
-            const headerH = 30;
-
-            const cardsY = headerY + headerH + headerGap;
-
-            const innerPad = 16;
-            const titleMaxW = cardW - innerPad * 2;
-            const descMaxW = cardW - innerPad * 2;
-
-            /** @type {Array<{titleLines:string[], descLines:string[], h:number}>} */
-            const measured = [];
-
-            for (let i = 1; i <= 3; i++) {
-                const titleKey = `title${i}`;
-                const descKey = `desc${i}`;
-                const titleVal = (uspData && uspData[titleKey]) ? uspData[titleKey] : `${t.cardTitleFallback} ${i}`;
-                const descVal = (uspData && uspData[descKey]) ? uspData[descKey] : `${t.cardDescFallback} ${i}`;
-
-                mctx.font = `800 18px ${fontBase}`;
-                const titleLines = wrapLines(mctx, titleVal, titleMaxW, 2);
-                const titleLH = 26;
-
-                mctx.font = `500 15px ${fontBase}`;
-                const descLines = wrapLines(mctx, descVal, descMaxW, 4);
-                const descLH = 22;
-
-                const h = (titleLines.length * titleLH) + 8 + (descLines.length * descLH) + innerPad * 2;
-                measured.push({ titleLines, descLines, h });
-            }
-
-            const maxCardH = Math.max(140, ...measured.map(m => m.h));
-            const blockHeight = (cardsY - startY) + maxCardH + 26;
-
-            const cards = [
-                { x: cardX1, y: cardsY, w: cardW, h: maxCardH, r: cardR, titleLines: measured[0].titleLines, descLines: measured[0].descLines },
-                { x: cardX2, y: cardsY, w: cardW, h: maxCardH, r: cardR, titleLines: measured[1].titleLines, descLines: measured[1].descLines },
-                { x: cardX3, y: cardsY, w: cardW, h: maxCardH, r: cardR, titleLines: measured[2].titleLines, descLines: measured[2].descLines }
-            ];
-
-            const blockBottom = startY + blockHeight;
-
-            return {
-                y: startY,
-                height: blockHeight,
-                header: { x: padX, y: headerY, text: headerText },
-                cards,
-                blockBottom
-            };
-        }
-
-        // -----------------------
-        // RENDER PASS
-        // -----------------------
-
-        function drawHero(ctx, heroData, heroLayout, lang, seq, requestRerender) {
-            const t = i18n(lang);
-            const fontBase = "Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
-            const { imageBox, text } = heroLayout;
+        for (let i = 0; i < uspLayout.cards.length; i++) {
+            const card = uspLayout.cards[i];
 
             ctx.save();
-            pathRoundRect(ctx, imageBox.x, imageBox.y, imageBox.w, imageBox.h, imageBox.r);
-            ctx.fillStyle = '#F3F4F6';
+            pathRoundRect(ctx, card.x, card.y, card.w, card.h, card.r);
+            ctx.fillStyle = '#FFFFFF';
             ctx.fill();
             ctx.strokeStyle = '#E5E7EB';
             ctx.lineWidth = 1;
             ctx.stroke();
             ctx.restore();
 
-            ctx.fillStyle = '#6B7280';
-            ctx.font = `600 16px ${fontBase}`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(t.heroImagePlaceholder, imageBox.x + imageBox.w / 2, imageBox.y + imageBox.h / 2);
-
-            const src = heroData && heroData.mainImage ? heroData.mainImage : null;
-            if (src) {
-                loadImage(src).then((img) => {
-                    if (!img) return;
-                    if (seq !== renderSeq) return;
-                    requestRerender();
-                });
-            }
-
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'top';
-
-            let y = text.yStart;
-
-            ctx.fillStyle = '#111827';
-            ctx.font = `800 34px ${fontBase}`;
-            for (const line of text.lines.name) {
-                ctx.fillText(line, text.xCenter, y);
-                y += text.lineHeights.name;
-            }
-
-            ctx.fillStyle = '#1F2937';
-            ctx.font = `700 24px ${fontBase}`;
-            for (const line of text.lines.main) {
-                ctx.fillText(line, text.xCenter, y);
-                y += text.lineHeights.main;
-            }
-
-            ctx.fillStyle = '#4B5563';
-            ctx.font = `500 18px ${fontBase}`;
-            for (const line of text.lines.sub) {
-                ctx.fillText(line, text.xCenter, y);
-                y += text.lineHeights.sub;
-            }
-
-            if (src) {
-                const cachedPromise = IMAGE_PROMISE_CACHE.get(src);
-                if (cachedPromise) {
-                    cachedPromise.then((img) => {
-                        if (!img) return;
-                        if (seq !== renderSeq) return;
-
-                        ctx.save();
-                        pathRoundRect(ctx, imageBox.x, imageBox.y, imageBox.w, imageBox.h, imageBox.r);
-                        ctx.clip();
-                        drawImageCover(ctx, img, imageBox.x, imageBox.y, imageBox.w, imageBox.h);
-                        ctx.restore();
-
-                        ctx.save();
-                        pathRoundRect(ctx, imageBox.x, imageBox.y, imageBox.w, imageBox.h, imageBox.r);
-                        ctx.strokeStyle = '#E5E7EB';
-                        ctx.lineWidth = 1;
-                        ctx.stroke();
-                        ctx.restore();
-                    });
-                }
-            }
-        }
-
-        function drawUSP(ctx, uspData, uspLayout, lang) {
-            const fontBase = "Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
+            const innerPad = 16;
+            let y = card.y + innerPad;
 
             ctx.save();
             ctx.fillStyle = '#111827';
-            ctx.font = `800 22px ${fontBase}`;
+            ctx.font = `800 18px ${fontBase}`;
             ctx.textAlign = 'left';
             ctx.textBaseline = 'top';
-            ctx.fillText(uspLayout.header.text, uspLayout.header.x, uspLayout.header.y);
-            ctx.restore();
-
-            for (let i = 0; i < uspLayout.cards.length; i++) {
-                const card = uspLayout.cards[i];
-
-                ctx.save();
-                pathRoundRect(ctx, card.x, card.y, card.w, card.h, card.r);
-                ctx.fillStyle = '#FFFFFF';
-                ctx.fill();
-                ctx.strokeStyle = '#E5E7EB';
-                ctx.lineWidth = 1;
-                ctx.stroke();
-                ctx.restore();
-
-                const innerPad = 16;
-                let y = card.y + innerPad;
-
-                ctx.save();
-                ctx.fillStyle = '#111827';
-                ctx.font = `800 18px ${fontBase}`;
-                ctx.textAlign = 'left';
-                ctx.textBaseline = 'top';
-                const titleLH = 26;
-                for (const line of card.titleLines) {
-                    ctx.fillText(line, card.x + innerPad, y);
-                    y += titleLH;
-                }
-                y += 6;
-                ctx.restore();
-
-                ctx.save();
-                ctx.fillStyle = '#4B5563';
-                ctx.font = `500 15px ${fontBase}`;
-                ctx.textAlign = 'left';
-                ctx.textBaseline = 'top';
-                const descLH = 22;
-                for (const line of card.descLines) {
-                    ctx.fillText(line, card.x + innerPad, y);
-                    y += descLH;
-                }
-                ctx.restore();
+            const titleLH = 26;
+            for (const line of card.titleLines) {
+                ctx.fillText(line, card.x + innerPad, y);
+                y += titleLH;
             }
-        }
-
-        function render(canvas, projectData, templateId, lang) {
-            if (!canvas || !projectData || !projectData.data) return;
-
-            const mctx = getMeasureCtx();
-            if (!mctx) return;
-
-            const heroData = projectData.data.hero || {};
-            const uspData = projectData.data.usp || {};
-
-            const heroLayout = measureHero(mctx, heroData);
-
-            const gapAfterHero = 26;
-            const uspStartY = heroLayout.height + gapAfterHero;
-            const uspLayout = measureUSP(mctx, uspData, uspStartY, lang);
-
-            const bottomPad = 30;
-            const totalHeight = Math.max(900, Math.ceil(uspLayout.blockBottom + bottomPad));
-
-            canvas.width = CANVAS_WIDTH;
-            canvas.height = totalHeight;
-
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return;
-
-            renderSeq += 1;
-            const seq = renderSeq;
-
-            const requestRerender = () => {
-                if (rerenderQueued) return;
-                rerenderQueued = true;
-                requestAnimationFrame(() => {
-                    rerenderQueued = false;
-                    try {
-                        render(canvas, projectData, templateId, lang);
-                    } catch (e) {
-                        console.error('Preview rerender failed:', e);
-                    }
-                });
-            };
-
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(0, 0, CANVAS_WIDTH, totalHeight);
-
-            drawHero(ctx, heroData, heroLayout, lang, seq, requestRerender);
+            y += 6;
+            ctx.restore();
 
             ctx.save();
-            ctx.strokeStyle = '#F3F4F6';
-            ctx.lineWidth = 8;
-            ctx.beginPath();
-            ctx.moveTo(24, heroLayout.height + 10);
-            ctx.lineTo(CANVAS_WIDTH - 24, heroLayout.height + 10);
-            ctx.stroke();
+            ctx.fillStyle = '#4B5563';
+            ctx.font = `500 15px ${fontBase}`;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            const descLH = 22;
+            for (const line of card.descLines) {
+                ctx.fillText(line, card.x + innerPad, y);
+                y += descLH;
+            }
             ctx.restore();
-
-            drawUSP(ctx, uspData, uspLayout, lang);
         }
+    }
 
-        return { render };
-    })();
+    function drawPrice(ctx, priceLayout) {
+        const fontBase = "Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
+
+        ctx.save();
+        ctx.fillStyle = '#111827';
+        ctx.font = `800 22px ${fontBase}`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(priceLayout.header.text, priceLayout.header.x, priceLayout.header.y);
+        ctx.restore();
+
+        const b = priceLayout.box;
+
+        ctx.save();
+        pathRoundRect(ctx, b.x, b.y, b.w, b.h, b.r);
+        ctx.fillStyle = '#F9FAFB';
+        ctx.fill();
+        ctx.strokeStyle = '#E5E7EB';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.font = `500 16px ${fontBase}`;
+        ctx.fillStyle = b.isPlaceholder ? '#9CA3AF' : '#374151';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        let y = b.y + b.innerPad;
+        for (const line of b.lines) {
+            ctx.fillText(line, b.x + b.innerPad, y);
+            y += b.lh;
+        }
+        ctx.restore();
+    }
+
+    function drawProof(ctx, proofLayout) {
+        const fontBase = "Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
+
+        ctx.save();
+        ctx.fillStyle = '#111827';
+        ctx.font = `800 22px ${fontBase}`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(proofLayout.header.text, proofLayout.header.x, proofLayout.header.y);
+        ctx.restore();
+
+        const b = proofLayout.box;
+
+        ctx.save();
+        pathRoundRect(ctx, b.x, b.y, b.w, b.h, b.r);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fill();
+        ctx.strokeStyle = '#E5E7EB';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+
+        const leftMarkX = b.x + b.innerPad;
+        const textX = leftMarkX + 22;
+
+        let y = b.y + b.innerPad;
+
+        // Review 1
+        ctx.save();
+        ctx.font = `700 16px ${fontBase}`;
+        ctx.fillStyle = b.isR1Placeholder ? '#9CA3AF' : '#111827';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText('✓', leftMarkX, y);
+        for (const line of b.r1Lines) {
+            ctx.fillText(line, textX, y);
+            y += b.rLH;
+        }
+        ctx.restore();
+
+        y += 10;
+
+        // Review 2
+        ctx.save();
+        ctx.font = `700 16px ${fontBase}`;
+        ctx.fillStyle = b.isR2Placeholder ? '#9CA3AF' : '#111827';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText('✓', leftMarkX, y);
+        for (const line of b.r2Lines) {
+            ctx.fillText(line, textX, y);
+            y += b.rLH;
+        }
+        ctx.restore();
+
+        // Certification
+        if (b.certLines && b.certLines.length) {
+            y += 12;
+            ctx.save();
+            ctx.font = `500 14px ${fontBase}`;
+            ctx.fillStyle = '#6B7280';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            for (const line of b.certLines) {
+                ctx.fillText(line, b.x + b.innerPad, y);
+                y += b.cLH;
+            }
+            ctx.restore();
+        }
+    }
+
+    /**
+     * Main entry
+     * @param {HTMLCanvasElement} canvas
+     * @param {{template:string, data:any}} projectData
+     * @param {string} templateId
+     * @param {'ko'|'en'} lang
+     */
+    function render(canvas, projectData, templateId, lang) {
+        if (!canvas || !projectData || !projectData.data) return;
+
+        const mctx = getMeasureCtx();
+        if (!mctx) return;
+
+        const heroData = projectData.data.hero || {};
+        const uspData = projectData.data.usp || {};
+        const priceData = projectData.data.price || {};
+        const proofData = projectData.data.proof || {};
+
+        // 1) MEASURE
+        const heroLayout = measureHero(mctx, heroData);
+
+        const gap = 26;
+
+        const uspStartY = heroLayout.height + gap;
+        const uspLayout = measureUSP(mctx, uspData, uspStartY, lang);
+
+        const priceStartY = uspLayout.blockBottom + gap;
+        const priceLayout = measurePrice(mctx, priceData, priceStartY, lang);
+
+        const proofStartY = priceLayout.blockBottom + gap;
+        const proofLayout = measureProof(mctx, proofData, proofStartY, lang);
+
+        const bottomPad = 30;
+        const totalHeight = Math.max(1100, Math.ceil(proofLayout.blockBottom + bottomPad));
+
+        // 2) RENDER
+        canvas.width = CANVAS_WIDTH;
+        canvas.height = totalHeight;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        renderSeq += 1;
+        const seq = renderSeq;
+
+        const requestRerender = () => {
+            if (rerenderQueued) return;
+            rerenderQueued = true;
+            requestAnimationFrame(() => {
+                rerenderQueued = false;
+                try {
+                    render(canvas, projectData, templateId, lang);
+                } catch (e) {
+                    console.error('Preview rerender failed:', e);
+                }
+            });
+        };
+
+        // background
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, CANVAS_WIDTH, totalHeight);
+
+        // HERO
+        drawHero(ctx, heroData, heroLayout, lang, seq, requestRerender);
+        drawDivider(ctx, heroLayout.height + 10);
+
+        // USP
+        drawUSP(ctx, uspLayout);
+        drawDivider(ctx, uspLayout.blockBottom + 10);
+
+        // PRICE
+        drawPrice(ctx, priceLayout);
+        drawDivider(ctx, priceLayout.blockBottom + 10);
+
+        // PROOF
+        drawProof(ctx, proofLayout);
+    }
+
+    return { render };
+})();
 
     function renderPreview() {
         const canvas = document.getElementById('previewCanvas');
