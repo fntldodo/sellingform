@@ -1,372 +1,631 @@
 /* ============================================================
-   🟣 SellingForm Export (ZIP/Image/HTML)
-   - GitHub Pages(정적) 환경에서 동작하도록 CDN 로더 포함
-   - JSZip + FileSaver.js(saveAs) 의존
-   - detail.html / workbench.html 에서 공통 사용
+   🟣 SellingForm Export (ZIP / Image / HTML)
+   - Static(GitHub Pages) 환경에서 동작
+   - JSZip + FileSaver(saveAs) 의존
+   - canvas slice export (860px master → coupang 780 downscale)
+
+   v3.14.1
+   - HTML Export: beauty_01 섹션별 HTML+CSS 생성
+   - Pretendard font 포함
+   - 이미지 추출/파일명 정리(jpeg→jpg)
+   - 코드 정리 + 방어 처리
    ============================================================ */
 
 (function () {
   'use strict';
 
-  // 네임스페이스 보장
-  window.SellingForm = window.SellingForm || {};
+  // ------------------------------------------------------------
+  // CDN Loader (GitHub web editor 마크다운 자동변환 회피용)
+  // ------------------------------------------------------------
 
-  // ------------------------------
-  // CDN 로더 (중복 로드 방지)
-  // ------------------------------
-  const CDN = {
-    JSZIP: 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
-    FILESAVER: 'https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js'
-  };
-
-  const _loadCache = new Map();
-
-  function loadScriptOnce(src) {
-    if (_loadCache.has(src)) return _loadCache.get(src);
-
-    const p = new Promise((resolve, reject) => {
-      // 이미 동일 src가 DOM에 있으면 onload를 기다림
-      const existing = Array.from(document.scripts || []).find((s) => s.src === src);
-      if (existing) {
-        // 이미 로드 완료되었을 수도 있으니 microtask에서 검사
-        Promise.resolve().then(resolve);
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.src = src;
-      script.async = true;
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error('스크립트 로드 실패: ' + src));
-      document.head.appendChild(script);
-    });
-
-    _loadCache.set(src, p);
-    return p;
-  }
-
-  async function ensureExportLibs() {
-    // JSZip, saveAs(FileSaver) 둘 다 필요
-    if (window.JSZip && typeof window.saveAs === 'function') return true;
-
-    await loadScriptOnce(CDN.JSZIP);
-    await loadScriptOnce(CDN.FILESAVER);
-
-    return !!(window.JSZip && typeof window.saveAs === 'function');
-  }
-
-  // ------------------------------
-  // 공개 API
-  // ------------------------------
-  window.SellingForm.Export = {
-    startExport,
-    exportToZip,
-    exportAsHTML
-  };
+  /** @type {Record<string, Promise<void>>} */
+  const _cdnLoadCache = Object.create(null);
 
   /**
-   * exportType: 'image' | 'html' | 'both'
-   * projectData: { template, data }
-   * options: { projectName, sliceHeight, format, quality }
+   * @param {string} src
+   * @returns {Promise<void>}
    */
-  async function startExport(exportType, projectData, options) {
-    options = options || {};
+  function loadScriptOnce(src) {
+    if (_cdnLoadCache[src]) return _cdnLoadCache[src];
 
-    const ok = await ensureExportLibs();
-    if (!ok) {
-      alert('Export 라이브러리 로딩에 실패했습니다. (JSZip/FileSaver)');
-      return false;
+    _cdnLoadCache[src] = new Promise((resolve, reject) => {
+      try {
+        const s = document.createElement('script');
+        s.src = src;
+        s.async = true;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error('Failed to load script: ' + src));
+        document.head.appendChild(s);
+      } catch (e) {
+        reject(e);
+      }
+    });
+
+    return _cdnLoadCache[src];
+  }
+
+  async function ensureZipDeps() {
+    // JSZip
+    if (typeof window.JSZip === 'undefined') {
+      await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
     }
 
-    try {
-      if (exportType === 'image') {
-        const canvas = document.getElementById('previewCanvas');
-        return await exportToZip(canvas, options.projectName || 'sellingform', {
-          sliceHeight: options.sliceHeight || 1200,
-          format: options.format || 'png',
-          quality: typeof options.quality === 'number' ? options.quality : 0.92
-        });
-      }
+    // FileSaver (saveAs)
+    if (typeof window.saveAs === 'undefined') {
+      await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js');
+    }
 
-      if (exportType === 'html') {
-        return await exportAsHTML(projectData, options.projectName || 'sellingform_html');
-      }
+    if (typeof window.JSZip === 'undefined') {
+      throw new Error('JSZip 로딩 실패');
+    }
 
-      if (exportType === 'both') {
-        const canvas = document.getElementById('previewCanvas');
-        await exportToZip(canvas, (options.projectName || 'sellingform') + '_images', {
-          sliceHeight: options.sliceHeight || 1200,
-          format: options.format || 'png',
-          quality: typeof options.quality === 'number' ? options.quality : 0.92
-        });
-        return await exportAsHTML(projectData, (options.projectName || 'sellingform') + '_html');
-      }
-
-      alert('알 수 없는 exportType: ' + exportType);
-      return false;
-    } catch (err) {
-      console.error('Export 실패:', err);
-      alert('Export 중 오류가 발생했습니다: ' + (err && err.message ? err.message : err));
-      return false;
+    if (typeof window.saveAs === 'undefined') {
+      throw new Error('FileSaver(saveAs) 로딩 실패');
     }
   }
 
-  // ------------------------------
-  // 이미지 슬라이스 ZIP 내보내기
-  // ------------------------------
-  function exportToZip(canvas, projectName, options) {
-    return new Promise((resolve) => {
-      options = options || {};
-      const sliceHeight = Math.max(200, Number(options.sliceHeight || 1200));
-      const format = (options.format || 'png').toLowerCase();
-      const quality = typeof options.quality === 'number' ? options.quality : 0.92;
+  // ------------------------------------------------------------
+  // Public API
+  // ------------------------------------------------------------
 
-      if (!canvas) {
-        alert('캔버스를 찾을 수 없습니다. (previewCanvas)');
-        resolve(false);
-        return;
-      }
+  /**
+   * @param {object} options
+   * @param {'smartstore'|'coupang'|'html'} options.mode
+   * @param {string} options.projectName
+   * @param {object} options.projectData  // detail builder data wrapper
+   * @param {HTMLCanvasElement} [options.canvas]
+   * @param {number} [options.sliceHeight]
+   */
+  async function startExport(options) {
+    const mode = options && options.mode;
+    if (mode !== 'smartstore' && mode !== 'coupang' && mode !== 'html') {
+      throw new Error('Invalid export mode');
+    }
 
+    const projectName = sanitizeFileBase((options && options.projectName) || 'project');
+    const projectData = (options && options.projectData) || null;
+
+    if (!projectData) {
+      throw new Error('projectData is required');
+    }
+
+    await ensureZipDeps();
+
+    if (mode === 'html') {
+      await exportAsHTML({ projectName, projectData });
+      return;
+    }
+
+    const canvas = options && options.canvas;
+    if (!canvas) throw new Error('canvas is required for image export');
+
+    const sliceHeight = Number(options.sliceHeight || (mode === 'smartstore' ? 1200 : 780));
+    if (!Number.isFinite(sliceHeight) || sliceHeight <= 0) throw new Error('sliceHeight invalid');
+
+    await exportCanvasSlices({
+      projectName,
+      mode,
+      canvas,
+      sliceHeight
+    });
+  }
+
+  // ------------------------------------------------------------
+  // Image Export (Canvas → slice images → zip)
+  // ------------------------------------------------------------
+
+  /**
+   * @param {{projectName:string, mode:'smartstore'|'coupang', canvas:HTMLCanvasElement, sliceHeight:number}} args
+   */
+  async function exportCanvasSlices(args) {
+    const { projectName, mode, canvas, sliceHeight } = args;
+
+    const zip = new window.JSZip();
+    const folder = zip.folder(mode);
+
+    if (!folder) throw new Error('zip folder 생성 실패');
+
+    const baseW = canvas.width;
+    const baseH = canvas.height;
+
+    // smartstore: 860 그대로
+    // coupang: 780 (860에서 downscale)
+    const targetW = (mode === 'coupang') ? 780 : 860;
+
+    const scale = targetW / baseW;
+    const targetSliceH = Math.round(sliceHeight * scale);
+
+    const totalSlices = Math.ceil(baseH / sliceHeight);
+
+    for (let i = 0; i < totalSlices; i++) {
+      const sy = i * sliceHeight;
+      const sh = Math.min(sliceHeight, baseH - sy);
+
+      const tmp = document.createElement('canvas');
+      tmp.width = targetW;
+      tmp.height = Math.round(sh * scale);
+      const tctx = tmp.getContext('2d');
+      if (!tctx) throw new Error('tmp canvas ctx failed');
+
+      // white bg
+      tctx.fillStyle = '#FFFFFF';
+      tctx.fillRect(0, 0, tmp.width, tmp.height);
+
+      // draw
+      tctx.drawImage(
+        canvas,
+        0,
+        sy,
+        baseW,
+        sh,
+        0,
+        0,
+        tmp.width,
+        tmp.height
+      );
+
+      const blob = await canvasToBlob(tmp, 'image/png');
+      const index = String(i + 1).padStart(3, '0');
+      const fileName = `${projectName}_${mode}_${tmp.width}x${tmp.height}_${index}.png`;
+      folder.file(fileName, blob);
+    }
+
+    const out = await zip.generateAsync({ type: 'blob' });
+    window.saveAs(out, `${projectName}_${mode}.zip`);
+  }
+
+  /**
+   * @param {HTMLCanvasElement} canvas
+   * @param {string} mime
+   * @returns {Promise<Blob>}
+   */
+  function canvasToBlob(canvas, mime) {
+    return new Promise((resolve, reject) => {
       try {
-        const zip = new window.JSZip();
-        const totalHeight = canvas.height;
-        const width = canvas.width;
-        const sliceCount = Math.ceil(totalHeight / sliceHeight);
-        const jobs = [];
-
-        for (let i = 0; i < sliceCount; i++) {
-          const index = i;
-          const sliceCanvas = document.createElement('canvas');
-          sliceCanvas.width = width;
-          const currentSliceHeight = Math.min(sliceHeight, totalHeight - index * sliceHeight);
-          sliceCanvas.height = currentSliceHeight;
-
-          const ctx = sliceCanvas.getContext('2d');
-          ctx.drawImage(
-            canvas,
-            0,
-            index * sliceHeight,
-            width,
-            currentSliceHeight,
-            0,
-            0,
-            width,
-            currentSliceHeight
-          );
-
-          const fileName = `slice_${String(index + 1).padStart(3, '0')}.${format}`;
-          jobs.push(
-            new Promise((res) => {
-              sliceCanvas.toBlob(
-                (blob) => {
-                  if (blob) zip.file(fileName, blob);
-                  res();
-                },
-                `image/${format}`,
-                quality
-              );
-            })
-          );
-        }
-
-        Promise.all(jobs)
-          .then(() => zip.generateAsync({ type: 'blob' }))
-          .then((zipBlob) => {
-            window.saveAs(zipBlob, `${projectName}.zip`);
-            resolve(true);
-          })
-          .catch((e) => {
-            console.error('ZIP 생성 실패:', e);
-            alert('ZIP 생성 실패: ' + e.message);
-            resolve(false);
-          });
+        canvas.toBlob((b) => {
+          if (!b) return reject(new Error('toBlob failed'));
+          resolve(b);
+        }, mime);
       } catch (e) {
-        console.error('exportToZip 실패:', e);
-        alert('이미지 Export 실패: ' + e.message);
-        resolve(false);
+        reject(e);
       }
     });
   }
 
-  // ------------------------------
-  // HTML/CSS/이미지 ZIP 내보내기
-  // ------------------------------
-  function exportAsHTML(projectData, projectName) {
-    return new Promise((resolve) => {
-      try {
-        if (!projectData || !projectData.data) {
-          alert('프로젝트 데이터가 없습니다.');
-          resolve(false);
-          return;
-        }
+  // ------------------------------------------------------------
+  // HTML Export (HTML+CSS+images → zip)
+  // ------------------------------------------------------------
 
-        const zip = new window.JSZip();
+  /**
+   * @param {{projectName:string, projectData:any}} args
+   */
+  async function exportAsHTML(args) {
+    const { projectName, projectData } = args;
 
-        const html = generateHTML(projectData);
-        zip.file('index.html', html);
+    const zip = new window.JSZip();
+    const folder = zip.folder('html');
+    if (!folder) throw new Error('zip folder 생성 실패');
 
-        const css = generateCSS(projectData.template || 'beauty_01');
-        zip.file('style.css', css);
+    const templateId = (projectData && projectData.template) ? projectData.template : 'beauty_01';
 
-        const images = extractImages(projectData.data);
-        if (images.length > 0) {
-          const imgFolder = zip.folder('images');
-          images.forEach((img) => {
-            const blob = base64ToBlob(img.data);
-            imgFolder.file(`${img.name}.${img.ext}`, blob);
-          });
-        }
+    const images = extractImages(projectData);
+    // images: Array<{name:string, dataUrl:string, ext:string}>
 
-        zip.file('README.txt', generateReadme(projectData));
+    // images folder
+    const imgFolder = folder.folder('images');
+    if (!imgFolder) throw new Error('images folder 생성 실패');
 
-        zip
-          .generateAsync({ type: 'blob' })
-          .then((zipBlob) => {
-            window.saveAs(zipBlob, `${projectName}.zip`);
-            resolve(true);
-          })
-          .catch((e) => {
-            console.error('HTML ZIP 생성 실패:', e);
-            alert('HTML ZIP 생성 실패: ' + e.message);
-            resolve(false);
-          });
-      } catch (e) {
-        console.error('exportAsHTML 실패:', e);
-        alert('HTML Export 실패: ' + e.message);
-        resolve(false);
-      }
-    });
+    for (const it of images) {
+      const blob = dataUrlToBlobSafe(it.dataUrl);
+      if (!blob) continue;
+      imgFolder.file(`${it.name}.${it.ext}`, blob);
+    }
+
+    const html = generateHTML(projectData, templateId, images);
+    const css = generateCSS(templateId);
+
+    folder.file('index.html', html);
+    folder.file('styles.css', css);
+
+    const out = await zip.generateAsync({ type: 'blob' });
+    window.saveAs(out, `${projectName}_html.zip`);
   }
 
-  // ------------------------------
-  // Export 템플릿 생성기(최소 안전 구현)
-  // ------------------------------
-  function generateHTML(projectData) {
-    const data = projectData.data || {};
-    const productName = (data.hero && data.hero.productName) || '상품명';
+  /**
+   * @param {any} projectData
+   * @param {string} templateId
+   * @param {Array<{name:string, dataUrl:string, ext:string, slotPath:string}>} images
+   */
+  function generateHTML(projectData, templateId, images) {
+    const data = (projectData && projectData.data) ? projectData.data : {};
 
-    let html = '';
-    html += '<!DOCTYPE html>\n';
-    html += '<html lang="ko">\n';
-    html += '<head>\n';
-    html += '  <meta charset="UTF-8">\n';
-    html += '  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n';
-    html += `  <title>${escapeHtml(productName)}</title>\n`;
-    html += '  <link rel="stylesheet" href="style.css">\n';
-    html += '</head>\n';
-    html += '<body>\n';
-    html += '  <div class="detail-page-container">\n';
+    /** @type {Record<string, string>} */
+    const imagePathMap = Object.create(null);
+    for (const it of images) {
+      imagePathMap[it.slotPath] = `images/${it.name}.${it.ext}`;
+    }
 
-    // 섹션 순서(beauty_01 기본 9블록)
-    const order = ['hero', 'usp', 'price', 'proof', 'detail', 'howto', 'faq', 'shipping', 'brand'];
-    order.forEach((key) => {
-      const sectionData = data[key];
-      if (sectionData && Object.keys(sectionData).length > 0) {
-        html += renderSectionHTML(key, sectionData);
-      }
-    });
+    const sectionsOrder = [
+      'hero',
+      'usp',
+      'price',
+      'proof',
+      'detail',
+      'howto',
+      'faq',
+      'shipping',
+      'brand'
+    ];
 
-    html += '  </div>\n';
-    html += '</body>\n';
-    html += '</html>\n';
-    return html;
+    let body = '';
+    for (const key of sectionsOrder) {
+      const sectionData = data[key] || {};
+      body += renderSectionHTML(templateId, key, sectionData, imagePathMap);
+    }
+
+    const titleText = safeText((data.hero && data.hero.productName) || 'SellingForm Export');
+
+    return [
+      '<!doctype html>',
+      '<html lang="ko">',
+      '<head>',
+      '  <meta charset="utf-8"/>',
+      '  <meta name="viewport" content="width=device-width, initial-scale=1"/>',
+      `  <title>${escapeHtml(titleText)}</title>`,
+      '  <link rel="stylesheet" href="styles.css"/>',
+      '  <link rel="preconnect" href="https://cdn.jsdelivr.net"/>',
+      '  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css"/>',
+      '</head>',
+      '<body>',
+      '  <div class="sf-page">',
+      body,
+      '  </div>',
+      '</body>',
+      '</html>'
+    ].join('\n');
   }
 
-  function renderSectionHTML(sectionKey, sectionData) {
-    // 최소 렌더러: 텍스트는 p로, 이미지는 images 폴더 참조(파일명 매핑은 generateImageName과 동일)
-    let out = '';
-    out += `  <section class="sf-section sf-${sectionKey}">\n`;
-    out += `    <h2 class="sf-section-title">${escapeHtml(sectionKey.toUpperCase())}</h2>\n`;
+  /**
+   * @param {string} templateId
+   * @returns {string}
+   */
+  function generateCSS(templateId) {
+    // templateId별 분기 가능. MVP는 beauty_01 중심.
+    void templateId;
 
-    Object.entries(sectionData).forEach(([slotKey, value], idx) => {
-      if (!value) return;
+    return [
+      ':root{--sf-max:860px;--sf-pad:24px;--sf-radius:18px;--sf-border:#e5e7eb;--sf-muted:#6b7280;--sf-text:#111827;}',
+      '*{box-sizing:border-box;}',
+      'html,body{margin:0;padding:0;}',
+      'body{font-family:Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; color:var(--sf-text); background:#fff;}',
+      '.sf-page{max-width:var(--sf-max); margin:0 auto; padding:32px 16px 56px;}',
+      '.sf-block{padding:18px var(--sf-pad);}',
+      '.sf-divider{height:10px; background:#f3f4f6; border-radius:999px; margin:18px var(--sf-pad);}',
+      '.sf-hero-img{width:100%; height:420px; border-radius:16px; border:1px solid var(--sf-border); background:#f3f4f6; overflow:hidden; display:flex; align-items:center; justify-content:center;}',
+      '.sf-hero-img img{width:100%; height:100%; object-fit:cover; display:block;}',
+      '.sf-hero-title{font-weight:800; font-size:34px; line-height:1.25; text-align:center; margin:22px 0 6px;}',
+      '.sf-hero-main{font-weight:700; font-size:24px; line-height:1.35; text-align:center; margin:0 0 6px; color:#1f2937;}',
+      '.sf-hero-sub{font-weight:500; font-size:18px; line-height:1.45; text-align:center; margin:0; color:#4b5563;}',
+      '.sf-h2{font-weight:800; font-size:22px; margin:0 0 14px;}',
+      '.sf-grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}',
+      '.sf-card{border:1px solid var(--sf-border); border-radius:14px; padding:16px;}',
+      '.sf-card-title{font-weight:800; font-size:18px; margin:0 0 8px;}',
+      '.sf-card-desc{font-weight:500; font-size:15px; line-height:1.5; color:#4b5563; margin:0; white-space:pre-line;}',
+      '.sf-text{font-size:15px; line-height:1.65; color:#374151; white-space:pre-line;}',
+      '.sf-proof-list{display:grid; gap:10px;}',
+      '.sf-proof-item{border:1px solid var(--sf-border); border-radius:12px; padding:12px 14px; font-size:14px; color:#374151;}',
+      '.sf-image{width:100%; border-radius:16px; border:1px solid var(--sf-border); background:#f3f4f6; overflow:hidden;}',
+      '.sf-image img{width:100%; display:block;}',
+      '.sf-steps{display:grid; gap:10px;}',
+      '.sf-step{border-left:4px solid #e5e7eb; padding:10px 12px;}',
+      '.sf-step strong{display:block; font-weight:800; margin-bottom:4px;}',
+      '.sf-faq{display:grid; gap:12px;}',
+      '.sf-faq-q{font-weight:800; margin:0 0 6px;}',
+      '.sf-faq-a{margin:0; color:#4b5563; white-space:pre-line;}',
+      '.sf-brand{display:grid; gap:12px;}',
+      '.sf-note{color:var(--sf-muted); font-size:13px;}',
+      '@media (max-width:860px){.sf-page{padding:24px 12px 44px;}.sf-grid-3{grid-template-columns:1fr;}.sf-hero-img{height:360px;}.sf-hero-title{font-size:28px;}.sf-hero-main{font-size:20px;}}'
+    ].join('\n');
+  }
 
-      if (typeof value === 'string' && value.startsWith('data:image/')) {
-        // 동일 규칙으로 파일명 생성
-        const ext = value.split(';')[0].split('/')[1] || 'png';
-        const imgName = generateImageName(sectionKey, slotKey, idx);
-        out += `    <div class="sf-slot sf-slot-image">\n`;
-        out += `      <img src="images/${imgName}.${ext}" alt="${escapeHtml(sectionKey)}" />\n`;
-        out += '    </div>\n';
-      } else {
-        out += `    <div class="sf-slot sf-slot-text">\n`;
-        out += `      <p>${escapeHtml(String(value))}</p>\n`;
-        out += '    </div>\n';
+  /**
+   * @param {string} templateId
+   * @param {string} sectionKey
+   * @param {any} sectionData
+   * @param {Record<string,string>} imagePathMap
+   */
+  function renderSectionHTML(templateId, sectionKey, sectionData, imagePathMap) {
+    // templateId별 분기 가능. MVP는 beauty_01 중심.
+    void templateId;
+
+    switch (sectionKey) {
+      case 'hero':
+        return renderHero(sectionData, imagePathMap);
+      case 'usp':
+        return renderUSP(sectionData);
+      case 'price':
+        return renderPrice(sectionData);
+      case 'proof':
+        return renderProof(sectionData);
+      case 'detail':
+        return renderDetail(sectionData, imagePathMap);
+      case 'howto':
+        return renderHowTo(sectionData);
+      case 'faq':
+        return renderFAQ(sectionData);
+      case 'shipping':
+        return renderShipping(sectionData);
+      case 'brand':
+        return renderBrand(sectionData, imagePathMap);
+      default:
+        return '';
+    }
+  }
+
+  // --------------------
+  // Section Renderers
+  // --------------------
+
+  function renderHero(d, imagePathMap) {
+    const name = safeText(d.productName);
+    const main = safeText(d.mainCopy);
+    const sub = safeText(d.subCopy);
+    const imgPath = imagePathMap['hero.mainImage'] || '';
+
+    return [
+      '<section class="sf-block sf-hero">',
+      `  <div class="sf-hero-img">${imgPath ? `<img src="${escapeAttr(imgPath)}" alt=""/>` : `<div class="sf-note">이미지가 없습니다</div>`}</div>`,
+      `  ${name ? `<h1 class="sf-hero-title">${escapeHtml(name)}</h1>` : ''}`,
+      `  ${main ? `<p class="sf-hero-main">${escapeHtml(main)}</p>` : ''}`,
+      `  ${sub ? `<p class="sf-hero-sub">${escapeHtml(sub)}</p>` : ''}`,
+      '</section>',
+      '<div class="sf-divider"></div>'
+    ].join('\n');
+  }
+
+  function renderUSP(d) {
+    const cards = [];
+    for (let i = 1; i <= 3; i++) {
+      const t = safeText(d[`title${i}`]) || `제목 ${i}`;
+      const desc = safeText(d[`desc${i}`]) || `설명 ${i}`;
+      cards.push([
+        '<div class="sf-card">',
+        `  <h3 class="sf-card-title">${escapeHtml(t)}</h3>`,
+        `  <p class="sf-card-desc">${escapeHtml(desc)}</p>`,
+        '</div>'
+      ].join('\n'));
+    }
+
+    return [
+      '<section class="sf-block">',
+      '  <h2 class="sf-h2">핵심 특징</h2>',
+      `  <div class="sf-grid-3">${cards.join('')} </div>`,
+      '</section>',
+      '<div class="sf-divider"></div>'
+    ].join('\n');
+  }
+
+  function renderPrice(d) {
+    const txt = safeText(d.priceText);
+    if (!txt) return '';
+
+    return [
+      '<section class="sf-block">',
+      '  <h2 class="sf-h2">가격</h2>',
+      `  <div class="sf-text">${escapeHtml(txt)}</div>`,
+      '</section>',
+      '<div class="sf-divider"></div>'
+    ].join('\n');
+  }
+
+  function renderProof(d) {
+    const list = [];
+    const r1 = safeText(d.review1);
+    const r2 = safeText(d.review2);
+    const c = safeText(d.certification);
+
+    if (r1) list.push(`<div class="sf-proof-item">${escapeHtml(r1)}</div>`);
+    if (r2) list.push(`<div class="sf-proof-item">${escapeHtml(r2)}</div>`);
+    if (c) list.push(`<div class="sf-proof-item">${escapeHtml(c)}</div>`);
+
+    if (list.length === 0) return '';
+
+    return [
+      '<section class="sf-block">',
+      '  <h2 class="sf-h2">증거·후기</h2>',
+      `  <div class="sf-proof-list">${list.join('')}</div>`,
+      '</section>',
+      '<div class="sf-divider"></div>'
+    ].join('\n');
+  }
+
+  function renderDetail(d, imagePathMap) {
+    const imgPath = imagePathMap['detail.detailImage'] || '';
+    const txt = safeText(d.detailText);
+
+    if (!imgPath && !txt) return '';
+
+    return [
+      '<section class="sf-block">',
+      '  <h2 class="sf-h2">상세 설명</h2>',
+      `  ${imgPath ? `<div class="sf-image"><img src="${escapeAttr(imgPath)}" alt=""/></div>` : ''}`,
+      `  ${txt ? `<div class="sf-text" style="margin-top:12px;">${escapeHtml(txt)}</div>` : ''}`,
+      '</section>',
+      '<div class="sf-divider"></div>'
+    ].join('\n');
+  }
+
+  function renderHowTo(d) {
+    const steps = [];
+    for (let i = 1; i <= 3; i++) {
+      const t = safeText(d[`step${i}Title`]);
+      if (!t) continue;
+      steps.push([
+        '<div class="sf-step">',
+        `  <strong>${escapeHtml(i + '단계')}</strong>`,
+        `  <div class="sf-text">${escapeHtml(t)}</div>`,
+        '</div>'
+      ].join('\n'));
+    }
+
+    if (steps.length === 0) return '';
+
+    return [
+      '<section class="sf-block">',
+      '  <h2 class="sf-h2">사용 방법</h2>',
+      `  <div class="sf-steps">${steps.join('')}</div>`,
+      '</section>',
+      '<div class="sf-divider"></div>'
+    ].join('\n');
+  }
+
+  function renderFAQ(d) {
+    const q1 = safeText(d.q1);
+    const a1 = safeText(d.a1);
+    if (!q1 && !a1) return '';
+
+    return [
+      '<section class="sf-block">',
+      '  <h2 class="sf-h2">FAQ</h2>',
+      '  <div class="sf-faq">',
+      '    <div class="sf-card">',
+      `      ${q1 ? `<p class="sf-faq-q">${escapeHtml(q1)}</p>` : ''}`,
+      `      ${a1 ? `<p class="sf-faq-a">${escapeHtml(a1)}</p>` : ''}`,
+      '    </div>',
+      '  </div>',
+      '</section>',
+      '<div class="sf-divider"></div>'
+    ].join('\n');
+  }
+
+  function renderShipping(d) {
+    const txt = safeText(d.shipping);
+    if (!txt) return '';
+
+    return [
+      '<section class="sf-block">',
+      '  <h2 class="sf-h2">배송·교환</h2>',
+      `  <div class="sf-text">${escapeHtml(txt)}</div>`,
+      '</section>',
+      '<div class="sf-divider"></div>'
+    ].join('\n');
+  }
+
+  function renderBrand(d, imagePathMap) {
+    const intro = safeText(d.intro1);
+    const imgPath = imagePathMap['brand.brandImage'] || '';
+
+    if (!intro && !imgPath) return '';
+
+    return [
+      '<section class="sf-block">',
+      '  <h2 class="sf-h2">브랜드 소개</h2>',
+      '  <div class="sf-brand">',
+      `    ${intro ? `<div class="sf-text">${escapeHtml(intro)}</div>` : ''}`,
+      `    ${imgPath ? `<div class="sf-image"><img src="${escapeAttr(imgPath)}" alt=""/></div>` : ''}`,
+      '  </div>',
+      '</section>'
+    ].join('\n');
+  }
+
+  // ------------------------------------------------------------
+  // Image extraction (dataURL)
+  // ------------------------------------------------------------
+
+  /**
+   * @param {any} projectData
+   * @returns {Array<{name:string,dataUrl:string,ext:string,slotPath:string}>}
+   */
+  function extractImages(projectData) {
+    const out = [];
+    if (!projectData || !projectData.data) return out;
+
+    const data = projectData.data;
+    for (const sectionKey of Object.keys(data)) {
+      const section = data[sectionKey];
+      if (!section || typeof section !== 'object') continue;
+
+      for (const slotKey of Object.keys(section)) {
+        const v = section[slotKey];
+        if (!isImageDataUrl(v)) continue;
+
+        const info = parseImageInfo(v);
+        const safeExt = info.ext;
+        const safeName = `${sectionKey}_${slotKey}`;
+        out.push({
+          name: safeName,
+          dataUrl: v,
+          ext: safeExt,
+          slotPath: `${sectionKey}.${slotKey}`
+        });
       }
-    });
+    }
 
-    out += '  </section>\n';
     return out;
   }
 
-  function generateCSS() {
-    // 최소 스타일(내보내기 파일이 깨지지 않게)
-    return [
-      '*{margin:0;padding:0;box-sizing:border-box;}',
-      'body{font-family:system-ui,-apple-system,Segoe UI,Roboto,\"Noto Sans KR\",sans-serif;line-height:1.6;color:#222;background:#fff;}',
-      '.detail-page-container{max-width:860px;margin:0 auto;padding:16px;}',
-      '.sf-section{padding:18px 14px;border:1px solid #eee;border-radius:14px;margin:14px 0;}',
-      '.sf-section-title{font-size:14px;letter-spacing:.06em;color:#666;margin-bottom:10px;}',
-      '.sf-slot{margin:10px 0;}',
-      '.sf-slot-image img{width:100%;height:auto;display:block;border-radius:12px;border:1px solid #f0f0f0;}'
-    ].join('\n');
+  function isImageDataUrl(v) {
+    return typeof v === 'string' && v.startsWith('data:image/');
   }
 
-  function extractImages(data) {
-    const images = [];
-    let imageCounter = 0;
-
-    for (const sectionKey in data) {
-      const sectionData = data[sectionKey] || {};
-      for (const slotKey in sectionData) {
-        const value = sectionData[slotKey];
-        if (value && typeof value === 'string' && value.startsWith('data:image/')) {
-          const ext = (value.split(';')[0].split('/')[1] || 'png').toLowerCase();
-          const name = generateImageName(sectionKey, slotKey, imageCounter++);
-          images.push({ name, ext, data: value });
-        }
-      }
+  /**
+   * @param {string} dataUrl
+   * @returns {{ext:'png'|'jpg'|'webp'}}
+   */
+  function parseImageInfo(dataUrl) {
+    const m = /^data:image\/(png|jpeg|jpg|webp);base64,/i.exec(dataUrl);
+    let ext = 'png';
+    if (m && m[1]) {
+      const t = m[1].toLowerCase();
+      ext = (t === 'jpeg') ? 'jpg' : (t === 'jpg' ? 'jpg' : (t === 'webp' ? 'webp' : 'png'));
     }
-    return images;
+    return { ext };
   }
 
-  function generateImageName(section, slot, index) {
-    // 기존 코드 호환용(주요 슬롯만 명명)
-    const nameMap = {
-      hero_mainImage: 'hero_main',
-      hero_gallery1: 'gallery1',
-      hero_gallery2: 'gallery2',
-      hero_gallery3: 'gallery3',
-      usp_icon1: 'usp_icon1',
-      usp_icon2: 'usp_icon2',
-      usp_icon3: 'usp_icon3',
-      detail_detailImage: 'detail_main',
-      brand_logo: 'brand_logo',
-      brand_brandImage: 'brand_main'
-    };
-    const key = `${section}_${slot}`;
-    return nameMap[key] || `image_${index}`;
+  /**
+   * @param {string} dataUrl
+   * @returns {Blob|null}
+   */
+  function dataUrlToBlobSafe(dataUrl) {
+    if (!isImageDataUrl(dataUrl)) return null;
+
+    try {
+      const parts = dataUrl.split(',');
+      if (parts.length < 2) return null;
+
+      const header = parts[0];
+      const base64 = parts[1];
+      const mimeMatch = /^data:(.*?);base64$/i.exec(header);
+      const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+
+      const binStr = atob(base64);
+      const len = binStr.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) bytes[i] = binStr.charCodeAt(i);
+
+      return new Blob([bytes], { type: mime });
+    } catch (e) {
+      console.warn('dataUrlToBlobSafe failed', e);
+      return null;
+    }
   }
 
-  function base64ToBlob(base64) {
-    const parts = base64.split(';base64,');
-    const contentType = (parts[0] || '').split(':')[1] || 'image/png';
-    const raw = window.atob(parts[1] || '');
-    const rawLength = raw.length;
-    const uInt8Array = new Uint8Array(rawLength);
-    for (let i = 0; i < rawLength; i++) uInt8Array[i] = raw.charCodeAt(i);
-    return new Blob([uInt8Array], { type: contentType });
+  // ------------------------------------------------------------
+  // Utils
+  // ------------------------------------------------------------
+
+  function safeText(v) {
+    if (v == null) return '';
+    const s = String(v);
+    return s.trim();
   }
 
-  function generateReadme(projectData) {
-    const productName = (projectData.data && projectData.data.hero && projectData.data.hero.productName) || '제목 없음';
-    const template = projectData.template || 'beauty_01';
-    return [
-      'SellingForm Export',
-      `Project: ${productName}`,
-      `Template: ${template}`,
-      `Date: ${new Date().toLocaleString('ko-KR')}`
-    ].join('\n');
+  function sanitizeFileBase(s) {
+    const base = safeText(s) || 'project';
+    return base
+      .replace(/[\\/:*?"<>|]/g, '_')
+      .replace(/\s+/g, '_')
+      .slice(0, 60);
   }
 
   function escapeHtml(s) {
@@ -377,4 +636,18 @@
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
   }
+
+  function escapeAttr(s) {
+    return escapeHtml(s);
+  }
+
+  // ------------------------------------------------------------
+  // Expose
+  // ------------------------------------------------------------
+
+  window.SellingForm = window.SellingForm || {};
+  window.SellingForm.Export = {
+    startExport
+  };
+
 })();
