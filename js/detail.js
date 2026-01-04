@@ -409,7 +409,8 @@
         });
 
         // Ctrl/Cmd + wheel zoom (Chrome/Edge/Safari)
-        const wrap = document.querySelector('.canvas-wrapper');
+        // .canvas-wrapper가 없던 레거시 마크업에서도 동작하도록 fallback 추가
+        const wrap = document.querySelector('.canvas-wrapper') || document.querySelector('.preview-canvas-container');
         if (wrap) {
             wrap.addEventListener('wheel', function(e) {
                 if (!(e.ctrlKey || e.metaKey)) return;
