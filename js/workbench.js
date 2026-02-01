@@ -2,13 +2,13 @@
 // SellingForm v3.8 - Workbench 작업 관리
 // ============================================================
 
-(function() {
+(function () {
     'use strict';
 
     // ============================================================
     // 전역 상태
     // ============================================================
-    
+
     const State = {
         currentFilter: 'all',
         searchQuery: '',
@@ -19,8 +19,8 @@
     // ============================================================
     // 페이지 초기화
     // ============================================================
-    
-    document.addEventListener('DOMContentLoaded', async function() {
+
+    document.addEventListener('DOMContentLoaded', async function () {
         console.log('Workbench 초기화 시작');
 
         // UI 이벤트 바인딩
@@ -35,11 +35,11 @@
     // ============================================================
     // UI 초기화
     // ============================================================
-    
+
     function initUI() {
         // 필터 버튼들
         document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
+            btn.addEventListener('click', function () {
                 const filter = this.dataset.filter;
                 setFilter(filter);
             });
@@ -48,7 +48,7 @@
         // 검색 입력
         const searchInput = document.getElementById('searchInput');
         if (searchInput) {
-            searchInput.addEventListener('input', function() {
+            searchInput.addEventListener('input', function () {
                 State.searchQuery = this.value.trim();
                 renderItems();
             });
@@ -63,7 +63,7 @@
         // 뒤로가기 버튼
         const btnBack = document.getElementById('btnBack');
         if (btnBack) {
-            btnBack.addEventListener('click', function() {
+            btnBack.addEventListener('click', function () {
                 window.location.href = '../index.html';
             });
         }
@@ -72,7 +72,7 @@
     // ============================================================
     // 필터 설정
     // ============================================================
-    
+
     function setFilter(filter) {
         State.currentFilter = filter;
 
@@ -92,7 +92,7 @@
     // ============================================================
     // 아이템 로드
     // ============================================================
-    
+
     async function loadItems() {
         try {
             const allItems = await window.SellingForm.DB.getAllItems();
@@ -107,7 +107,7 @@
     // ============================================================
     // 아이템 렌더링
     // ============================================================
-    
+
     function renderItems() {
         const grid = document.getElementById('itemsGrid');
         if (!grid) return;
@@ -157,7 +157,7 @@
     // ============================================================
     // 아이템 카드 생성
     // ============================================================
-    
+
     function createItemCard(item) {
         const card = document.createElement('div');
         card.className = 'work-item';
@@ -197,9 +197,14 @@
         // 메타 정보
         const meta = document.createElement('div');
         meta.className = 'item-meta';
-        const date = window.SellingForm.Utils.formatRelativeTime(item.updatedAt);
+
+        let dateStr = item.updatedAt ? new Date(item.updatedAt).toLocaleDateString() : '날짜 없음';
+        if (window.SellingForm && window.SellingForm.Utils && window.SellingForm.Utils.formatRelativeTime) {
+            dateStr = window.SellingForm.Utils.formatRelativeTime(new Date(item.updatedAt).getTime());
+        }
+
         meta.innerHTML = `
-            <span>📅 ${date}</span>
+            <span>📅 ${dateStr}</span>
             <span>ID: ${item.id}</span>
         `;
         info.appendChild(meta);
@@ -240,7 +245,7 @@
     // ============================================================
     // 타입별 정보
     // ============================================================
-    
+
     function getTypeIcon(type) {
         const icons = {
             detail: '🎨',
@@ -264,23 +269,29 @@
     // ============================================================
     // 편집
     // ============================================================
-    
+
     function editItem(item) {
-        // 타입별 페이지로 이동
-        if (item.type === 'detail') {
-            window.location.href = `detail.html?id=${item.id}`;
+        const typePages = {
+            'detail': 'detail.html',
+            'pdf': 'pdf.html',
+            'form': 'form.html',
+            'convert': 'convert.html'
+        };
+
+        const page = typePages[item.type];
+        if (page) {
+            window.location.href = `${page}?id=${item.id}`;
         } else {
-            // 다른 모듈은 아직 미구현
-            alert(`${getTypeName(item.type)} 편집 기능은 준비 중입니다.`);
+            alert(`${getTypeName(item.type)} 편집 기능은 현재 지원되지 않습니다.`);
         }
     }
 
     // ============================================================
     // 삭제
     // ============================================================
-    
+
     async function deleteItem(item) {
-        const confirmed = confirm(`"${item.title}"을(를) 삭제하시겠습니까?\n삭제 후 3초 내에 실행 취소할 수 있습니다.`);
+        const confirmed = confirm(`"${item.title}"을(를) 삭제하시겠습니까?\n삭제 후 5초 내에 실행 취소할 수 있습니다.`);
         if (!confirmed) return;
 
         try {
@@ -298,7 +309,7 @@
             if (window.SellingForm.Toast) {
                 window.SellingForm.Toast.show(
                     '삭제되었습니다',
-                    3000,
+                    5000,
                     '실행 취소',
                     undoDelete
                 );
@@ -313,14 +324,14 @@
     // ============================================================
     // 삭제 취소
     // ============================================================
-    
+
     async function undoDelete() {
         if (!State.lastDeletedItem) return;
 
         try {
             // DB에 복원 (새 ID로 저장)
             const newId = await window.SellingForm.DB.addItem(State.lastDeletedItem);
-            
+
             // 상태에 복원
             const restoredItem = { ...State.lastDeletedItem, id: newId };
             State.items.push(restoredItem);
@@ -342,14 +353,14 @@
     // ============================================================
     // JSON Import
     // ============================================================
-    
+
     function triggerJsonImport() {
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = '.json';
         input.style.display = 'none';
 
-        input.addEventListener('change', async function(e) {
+        input.addEventListener('change', async function (e) {
             const file = e.target.files[0];
             if (file) {
                 await handleJsonImport(file);
@@ -382,7 +393,7 @@
                 type: 'detail',
                 title: jsonData.title || file.name.replace('.json', ''),
                 thumbnail: null,
-                 jsonData
+                data: jsonData
             };
 
             const id = await window.SellingForm.DB.addItem(itemData);
@@ -408,7 +419,7 @@
 
         } catch (error) {
             console.error('JSON Import 실패:', error);
-            
+
             if (window.SellingForm.Utils) {
                 window.SellingForm.Utils.hideLoading();
             }
@@ -420,7 +431,7 @@
     // ============================================================
     // 전역 함수 노출
     // ============================================================
-    
+
     window.undoDelete = undoDelete;
 
 })();

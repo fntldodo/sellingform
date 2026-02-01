@@ -3,7 +3,7 @@
    ============================================================ */
 
 /* ========================================
-   헤더 스타일
+   Header & Design Tokens (v3.9)
 ======================================== */
 
 .header {
@@ -11,13 +11,13 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 70px;
-    background: white;
-    border-bottom: 1px solid #e2e8f0;
+    height: 72px;
+    background: #FFFFFF;
+    border-bottom: 1px solid #E2E8F0;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 24px;
+    padding: 0 40px;
     z-index: 100;
 }
 
@@ -35,24 +35,26 @@
 
 .btn-back {
     padding: 8px 16px;
-    background: #f7fafc;
+    background: #F1F5F9;
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    border-radius: 10px;
     text-decoration: none;
-    color: #333;
+    color: #64748B;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 700;
     transition: all 0.2s;
 }
 
 .btn-back:hover {
-    background: #e2e8f0;
+    background: #E2E8F0;
+    color: #1E293B;
 }
 
 .page-title {
     font-size: 18px;
-    font-weight: 700;
-    color: #1a202c;
+    font-weight: 800;
+    color: #1E293B;
+    letter-spacing: -0.02em;
     margin: 0;
 }
 
@@ -68,13 +70,20 @@
 }
 
 .btn-save {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #6366F1;
     color: white;
+    padding: 10px 24px;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    cursor: pointer;
+    transition: all 0.2s;
 }
 
 .btn-save:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
 }
 
 .btn-export {
@@ -89,30 +98,27 @@
 }
 
 .btn-lang {
-    padding: 10px 16px;
-    background: white;
-    border: 2px solid #667eea;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    color: #667eea;
+    padding: 10px 18px;
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #64748B;
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .btn-lang:hover {
-    background: #667eea;
-    color: white;
+    background: #F8FAFC;
+    color: #1E293B;
 }
 
-.btn-lang.active-ko {
-    background: #667eea;
-    color: white;
-}
-
+.btn-lang.active-ko,
 .btn-lang.active-en {
-    background: #764ba2;
-    color: white;
+    background: #EEF2FF;
+    color: #6366F1;
+    border-color: #6366F1;
 }
 
 
@@ -382,7 +388,8 @@
 .preview-panel {
     background: var(--gray-100);
     padding: var(--space-lg);
-    overflow: auto; /* allow horizontal scroll for zoomed preview */
+    overflow: auto;
+    /* allow horizontal scroll for zoomed preview */
 }
 
 .preview-header {
@@ -560,7 +567,7 @@
     .workspace {
         grid-template-columns: 1fr;
     }
-    
+
     .edit-panel {
         border-right: none;
         border-bottom: 1px solid var(--gray-200);
@@ -572,11 +579,11 @@
     .top-nav {
         padding: var(--space-sm) var(--space-md);
     }
-    
+
     .page-title {
         font-size: 1rem;
     }
-    
+
     .btn-back,
     .btn-save {
         padding: var(--space-sm) var(--space-md);

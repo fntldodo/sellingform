@@ -3,30 +3,30 @@
 // 공통 유틸리티 및 초기화
 // ============================================================
 
-(function() {
+(function () {
     'use strict';
 
     // ============================================================
     // 전역 네임스페이스
     // ============================================================
-    
+
     window.SellingForm = window.SellingForm || {};
 
     // ============================================================
     // 유틸리티 함수
     // ============================================================
-    
+
     window.SellingForm.Utils = {
         // 상대 시간 포맷 (예: "3일 전")
         formatRelativeTime(timestamp) {
             const now = Date.now();
             const diff = now - timestamp;
-            
+
             const seconds = Math.floor(diff / 1000);
             const minutes = Math.floor(seconds / 60);
             const hours = Math.floor(minutes / 60);
             const days = Math.floor(hours / 24);
-            
+
             if (days > 0) return `${days}일 전`;
             if (hours > 0) return `${hours}시간 전`;
             if (minutes > 0) return `${minutes}분 전`;
@@ -114,7 +114,7 @@
         // 쓰로틀
         throttle(func, limit) {
             let inThrottle;
-            return function(...args) {
+            return function (...args) {
                 if (!inThrottle) {
                     func.apply(this, args);
                     inThrottle = true;
@@ -127,7 +127,7 @@
     // ============================================================
     // 토스트 알림
     // ============================================================
-    
+
     window.SellingForm.Toast = {
         show(message, duration = 3000, actionText = null, actionCallback = null) {
             // 기존 토스트 제거
@@ -214,7 +214,7 @@
     // ============================================================
     // 모달 관리
     // ============================================================
-    
+
     window.SellingForm.Modal = {
         open(modalId) {
             const modal = document.getElementById(modalId);
@@ -238,8 +238,8 @@
     // ============================================================
     // 전역 에러 핸들러
     // ============================================================
-    
-    window.addEventListener('error', function(e) {
+
+    window.addEventListener('error', function (e) {
         console.error('전역 에러:', e.error);
         // 개발 환경에서만 표시
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
@@ -247,7 +247,7 @@
         }
     });
 
-    window.addEventListener('unhandledrejection', function(e) {
+    window.addEventListener('unhandledrejection', function (e) {
         console.error('Unhandled Promise Rejection:', e.reason);
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
             window.SellingForm.Toast.show('비동기 에러: ' + e.reason, 5000);
@@ -255,35 +255,165 @@
     });
 
     // ============================================================
+    // 전역 언어 관리 (I18n) - v3.9 Enhanced
+    // ============================================================
+    window.SellingForm.I18n = {
+        lang: localStorage.getItem('language') || 'ko', // Enforce Korean as default
+
+        // 공통 UI 사전 (페이지별 사전이 없을 경우 여기서 참조)
+        GlobalDictionary: {
+            ko: {
+                home: '홈',
+                files: '파일',
+                pay: '결제',
+                set: '설정',
+                back: '뒤로가기',
+                save: '저장',
+                cancel: '취소',
+                copy: '복사',
+                print: '인쇄',
+                export: '내보내기',
+                workbench: '워크벤치',
+                ai: 'AI 도구',
+                docs: '표준 서식',
+                pdf: 'PDF 편집',
+                success: '성공!',
+                error: '오류 발생',
+                loading: '처리 중...',
+                close: '닫기'
+            },
+            en: {
+                home: 'HOME',
+                files: 'FILES',
+                pay: 'PAY',
+                set: 'SET',
+                back: 'BACK',
+                save: 'SAVE',
+                cancel: 'CANCEL',
+                copy: 'COPY',
+                print: 'PRINT',
+                export: 'EXPORT',
+                workbench: 'WORKBENCH',
+                ai: 'AI TOOLS',
+                docs: 'FORMS',
+                pdf: 'PDF EDITOR',
+                success: 'SUCCESS!',
+                error: 'ERROR',
+                loading: 'PROCESSING...',
+                close: 'CLOSE'
+            }
+        },
+
+        init() {
+            this.updateUI();
+            this.syncLanguageToggle();
+        },
+
+        setLanguage(lang) {
+            // Standardize strings like 'KO' or 'English (EN)' to 'ko'/'en'
+            let normalized = lang.toLowerCase();
+            if (normalized.includes('ko')) normalized = 'ko';
+            else if (normalized.includes('en')) normalized = 'en';
+
+            this.lang = normalized;
+            localStorage.setItem('language', normalized);
+            this.updateUI();
+            this.syncLanguageToggle();
+
+            // Dispatch event for page-specific listeners
+            window.dispatchEvent(new CustomEvent('languageChanged', { detail: { lang: normalized } }));
+        },
+
+        updateUI() {
+            const pageDict = window.i18n || {};
+            const globalDict = this.GlobalDictionary;
+
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.dataset.i18n;
+                // Priority: 1. Page Specific, 2. Global Common, 3. Original Text (Fallback)
+                const val = (pageDict[this.lang] && pageDict[this.lang][key]) ||
+                    (globalDict[this.lang] && globalDict[this.lang][key]);
+
+                if (val) {
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                        el.placeholder = val;
+                    } else if (el.dataset.i18nType === 'title') {
+                        el.title = val;
+                    } else {
+                        el.textContent = val;
+                    }
+                }
+            });
+        },
+
+        syncLanguageToggle() {
+            document.querySelectorAll('.lang-btn, .menu-item').forEach(btn => {
+                const text = (btn.textContent || '').toLowerCase();
+                const isMatch = (this.lang === 'ko' && text.includes('ko')) ||
+                    (this.lang === 'en' && text.includes('en'));
+
+                if (btn.classList.contains('lang-btn')) {
+                    btn.classList.toggle('active', isMatch);
+                }
+            });
+        }
+    };
+
+    // ============================================================
     // 초기화
     // ============================================================
-    
-    document.addEventListener('DOMContentLoaded', function() {
+
+    document.addEventListener('DOMContentLoaded', function () {
         console.log('SellingForm Core 초기화 완료');
-        console.log('사용 가능한 모듈:', Object.keys(window.SellingForm));
+        window.SellingForm.I18n.init();
+
+        // 전역 언어 변경 이벤트 리스너 (버튼용)
+        document.body.addEventListener('click', (e) => {
+            if (e.target.classList.contains('lang-btn') || e.target.classList.contains('menu-item')) {
+                // Determine source: standard button or menu item
+                const text = e.target.textContent || '';
+                const newLang = text.includes('KO') ? 'ko' : (text.includes('EN') ? 'en' : text.toLowerCase());
+                window.SellingForm.I18n.setLanguage(newLang);
+
+                // Close menu if it's a dropdown item
+                const menu = document.getElementById('langMenu');
+                if (menu) menu.classList.remove('show');
+            }
+
+            // Globe Dropdown Toggle
+            const globeBtn = document.getElementById('globeBtn');
+            const langMenu = document.getElementById('langMenu');
+            if (globeBtn && langMenu) {
+                if (globeBtn.contains(e.target)) {
+                    langMenu.classList.toggle('show');
+                } else if (!langMenu.contains(e.target)) {
+                    langMenu.classList.remove('show');
+                }
+            }
+        });
     });
 
     // ============================================================
     // 개발자 도구 감지 (선택 사항)
     // ============================================================
-    
+
     if (typeof window.SellingForm.DevMode === 'undefined') {
         window.SellingForm.DevMode = {
-            enabled: window.location.hostname === 'localhost' || 
-                     window.location.hostname === '127.0.0.1',
-            
+            enabled: window.location.hostname === 'localhost' ||
+                window.location.hostname === '127.0.0.1',
+
             log(...args) {
                 if (this.enabled) {
                     console.log('[SellingForm]', ...args);
                 }
             },
-            
+
             warn(...args) {
                 if (this.enabled) {
                     console.warn('[SellingForm]', ...args);
                 }
             },
-            
+
             error(...args) {
                 console.error('[SellingForm]', ...args);
             }

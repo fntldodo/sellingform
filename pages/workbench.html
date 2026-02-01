@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,16 +8,20 @@
     <link rel="stylesheet" href="../css/app.css">
     <link rel="stylesheet" href="../css/workbench.css">
 </head>
+
 <body>
     <div class="workbench-container">
         <!-- 상단 네비게이션 -->
-        <nav class="top-nav">
-            <button class="btn-back" onclick="location.href='../index.html'">
-                ← 홈으로
+        <nav class="top-nav" style="display:flex; justify-content:space-between; align-items:center;">
+            <button class="btn-back" onclick="location.href='../index.html'"
+                style="border:1px solid #E2E8F0; padding:8px 16px; border-radius:8px; background:white; font-weight:700;">
+                BACK
             </button>
-            <h1 class="page-title">💼 내 작업</h1>
-            <button class="btn-import" id="btnImport">
-                📥 불러오기
+            <h1 class="page-title" style="margin:0; font-size:24px; font-weight:800; letter-spacing:-0.02em;">MY
+                WORKBENCH</h1>
+            <button class="btn-import" id="btnImport"
+                style="background:var(--primary-indigo, #4F46E5); color:white; border:none; padding:8px 16px; border-radius:8px; font-weight:700;">
+                IMPORT JSON
             </button>
         </nav>
 
@@ -53,7 +58,9 @@
         <button class="btn-undo" id="btnUndo">취소</button>
     </div>
 
-    <script src="../js/db.js"></script>
-    <script src="../js/workbench.js"></script>
+    <script src="../js/db.js?v=3.9.1"></script>
+    <script src="../js/app.js?v=3.9.1"></script>
+    <script src="../js/workbench.js?v=3.9.1"></script>
 </body>
+
 </html>

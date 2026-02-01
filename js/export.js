@@ -125,7 +125,7 @@
             const zip = new JSZip();
             await addCanvasSlicesToZip(zip, 'smartstore', canvas, sliceHeight, fmt, projectName);
             await addCanvasSlicesToZip(zip, 'coupang', canvas, sliceHeight, fmt, projectName);
-            await downloadZip(zip, `${projectName}_images.zip`);
+            await downloadZip(zip, `${projectName}_export.zip`);
             return;
         }
 
@@ -236,6 +236,10 @@ async function addCanvasSlicesToZip(zip, mode, canvas, sliceHeight, fmt, project
         tmp.height = sliceHTarget;
 
         const ctx = tmp.getContext('2d');
+        // White background for slices
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, tmp.width, tmp.height);
+        
         ctx.drawImage(
             canvas,
             0, y, baseW, sliceHBase,
@@ -245,7 +249,9 @@ async function addCanvasSlicesToZip(zip, mode, canvas, sliceHeight, fmt, project
         const blob = await canvasToBlob(tmp, fmt.mime, fmt.quality);
         const idxStr = String(index).padStart(3, '0');
 
-        const filename = `${projectName}_${mode}_${tmp.width}x${tmp.height}_${idxStr}.${fmt.ext}`;
+        // Rule: {project}_{channel}_{w}x{h}_{index}.png
+        const channel = (mode === 'coupang') ? 'coupang' : 'smartstore';
+        const filename = `${projectName}_${channel}_${tmp.width}x${tmp.height}_${idxStr}.${fmt.ext}`;
         folder.file(filename, blob);
 
         y += baseSliceH;

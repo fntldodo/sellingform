@@ -1,720 +1,381 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>상세페이지 편집 - SellingForm</title>
-  <link rel="stylesheet" href="../css/detail.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>상세페이지 허브 - SellingForm v3.9</title>
+  <!-- Premium Fonts -->
+  <link rel="stylesheet" as="style" crossorigin
+    href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
+  <link rel="stylesheet" href="../css/app.css?v=3.9.1">
+  <link rel="stylesheet" href="../css/index.css?v=3.9.1"> <!-- Global Layout -->
   <style>
-    /* ========================================
-       기본 레이아웃
-    ======================================== */
-
-    .detail-container {
-      display: flex;
-      gap: 0;
-
-      /* ✅ 헤더(70px)만큼 아래로 내려서 겹침 제거 */
-      margin-top: 70px;
-
-      /* ✅ 패널 내부 스크롤을 위해 높이 고정 */
-      height: calc(100vh - 70px);
+    /* Gallery specific refinements over dashboard layout */
+    .gallery-mode {
+      padding: 40px;
+      max-width: 1400px;
+      margin: 0 auto;
     }
 
-    .editor-panel {
-      width: 400px;
-      min-width: 400px;
-      height: 100%;
-      background: #f8f9fa;
-      border-right: 1px solid #e2e8f0;
+    .gallery-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .gallery-header h2 {
+      font-size: 36px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      margin-bottom: 12px;
+      color: #1E293B;
+    }
+
+    .gallery-header p {
+      color: #64748B;
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .template-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 32px;
+      padding-bottom: 100px;
+    }
+
+    .template-card {
+      background: white;
+      border-radius: 28px;
+      overflow: hidden;
+      border: 1px solid #E2E8F0;
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    .template-card:hover {
+      transform: translateY(-12px);
+      box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.12);
+      border-color: var(--primary-indigo);
+    }
+
+    .template-thumbnail {
+      width: 100%;
+      height: 240px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 80px;
+      position: relative;
+    }
+
+    .template-info {
+      padding: 24px 28px;
+    }
+
+    .template-info h3 {
+      font-size: 20px;
+      font-weight: 800;
+      margin-bottom: 10px;
+      color: #1E293B;
+    }
+
+    .template-info p {
+      font-size: 14px;
+      color: #64748B;
+      line-height: 1.6;
+      margin-bottom: 24px;
+      height: 44px;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .template-tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .template-tag {
+      background: #F1F5F9;
+      color: #475569;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* Preview Mode Container */
+    .preview-content {
+      display: flex;
+      height: calc(100vh - 80px);
+      overflow: hidden;
+      background: #F8FAFC;
+    }
+
+    .preview-sidebar {
+      width: 420px;
+      background: white;
+      border-right: 1px solid #E2E8F0;
+      padding: 48px;
       display: flex;
       flex-direction: column;
-
-      /* ✅ slot-editor가 스크롤 담당(중첩 스크롤 방지) */
-      overflow: hidden;
     }
 
-    .preview-panel {
-      flex: 1;
-      height: 100%;
-      background: #ffffff;
-
-      /* ✅ 미리보기는 패널 자체 스크롤 */
-      overflow-y: auto;
+    .preview-sidebar h3 {
+      font-size: 28px;
+      font-weight: 900;
+      margin-bottom: 16px;
+      letter-spacing: -0.04em;
     }
 
-    /* 섹션 네비게이션 - 상단 고정(패널 내부에서) */
-    .section-nav {
-      background: white;
-      border-bottom: 1px solid #e2e8f0;
-      padding: 15px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      position: sticky;
-      top: 0;
-      z-index: 10;
+    .preview-sidebar p {
+      color: #64748B;
+      line-height: 1.7;
+      margin-bottom: 40px;
     }
 
-    /* 슬롯 편집기 - 아래 영역 스크롤 */
-    .slot-editor {
-      padding: 20px;
-      flex: 1;
-      overflow-y: auto;
-    }
-
-    /* ========================================
-       모바일 탭 바
-    ======================================== */
-
-    .mobile-tab-bar {
-      display: none;
-      position: fixed;
-      top: 70px; /* 헤더 아래 */
-      left: 0;
-      right: 0;
-      background: white;
-      border-bottom: 1px solid #e2e8f0;
-      z-index: 90;
-      height: 50px;
-    }
-
-    .tab-button {
-      flex: 1;
-      border: none;
-      background: transparent;
-      padding: 15px;
-      font-size: 14px;
-      font-weight: 600;
-      color: #718096;
-      cursor: pointer;
-      position: relative;
-      transition: color 0.2s;
-    }
-
-    .tab-button.active {
-      color: #667eea;
-    }
-
-    .tab-button.active::after {
-      content: "";
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: #667eea;
-    }
-
-    /* ========================================
-       모바일 반응형
-    ======================================== */
-
-    @media (max-width: 968px) {
-      .mobile-tab-bar {
-        display: flex !important;
-      }
-
-      .detail-container {
-        margin-top: 120px; /* 헤더 70 + 탭바 50 */
-        height: calc(100vh - 120px); /* ✅ 추가: 겹침/잘림 방지 */
-        flex-direction: column;
-      }
-
-      .editor-panel,
-      .preview-panel {
-        display: none;
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 100% !important;
-        border: none !important;
-        height: 100%;
-      }
-
-      .editor-panel.active,
-      .preview-panel.active {
-        display: flex;
-        flex-direction: column; /* ✅ 모바일에서 preview 레이아웃 안정화 */
-      }
-
-      /* 섹션 네비게이션 - 모바일에서 상단 고정 */
-      .section-nav {
-        position: sticky;
-        top: 0;
-        padding: 10px;
-      }
-
-      .slot-editor {
-        padding: 15px;
-        margin-top: 0;
-      }
-
-      .page-title {
-        font-size: 14px;
-      }
-
-      .btn-save,
-      .btn-export {
-        padding: 8px 12px;
-        font-size: 13px;
-      }
-    }
-
-    /* ========================================
-       Export 모달 스타일
-    ======================================== */
-
-    .modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.7);
-      z-index: 10000;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .modal.active {
-      display: flex;
-    }
-
-    .modal-content {
-      background: white;
-      border-radius: 16px;
-      max-width: 600px;
-      width: 90%;
-      max-height: 90vh;
-      overflow-y: auto;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    }
-
-    .modal-header {
-      padding: 24px;
-      border-bottom: 1px solid #e2e8f0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .modal-header h3 {
-      margin: 0;
-      font-size: 20px;
-      font-weight: 700;
-      color: #1a202c;
-    }
-
-    .modal-header button {
-      background: none;
-      border: none;
-      font-size: 24px;
-      cursor: pointer;
-      color: #666;
+    .section-list {
+      list-style: none;
       padding: 0;
-      width: 32px;
-      height: 32px;
+      margin-bottom: 40px;
+    }
+
+    .section-list li {
+      padding: 12px 0;
+      border-bottom: 1px solid #F1F5F9;
       display: flex;
       align-items: center;
-      justify-content: center;
-      border-radius: 4px;
-      transition: background 0.2s;
-    }
-
-    .modal-header button:hover {
-      background: #f7fafc;
-    }
-
-    .modal-body {
-      padding: 24px;
-    }
-
-    .modal-footer {
-      padding: 24px;
-      border-top: 1px solid #e2e8f0;
-      display: flex;
       gap: 12px;
-    }
-
-    .export-type-option {
-      display: flex;
-      align-items: flex-start;
-      padding: 16px;
-      border: 2px solid #e2e8f0;
-      border-radius: 8px;
-      margin-bottom: 12px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .export-type-option:hover {
-      border-color: #667eea;
-      background: #f7fafc;
-    }
-
-    .export-type-option input[type="radio"] {
-      margin-right: 12px;
-      margin-top: 2px;
-      width: 18px;
-      height: 18px;
-      cursor: pointer;
-    }
-
-    .export-type-option input[type="radio"]:checked {
-      accent-color: #667eea;
-    }
-
-    .option-title {
-      font-weight: 600;
-      margin-bottom: 4px;
-      color: #333;
-    }
-
-    .option-desc {
-      font-size: 13px;
-      color: #666;
-      margin: 0;
-    }
-
-    .form-group {
-      margin-bottom: 24px;
-    }
-
-    .form-group label {
-      display: block;
-      font-weight: 600;
-      margin-bottom: 8px;
-      color: #333;
-    }
-
-    .form-group input,
-    .form-group select {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
+      font-weight: 700;
       font-size: 14px;
+      color: #475569;
     }
 
-    .form-hint {
-      font-size: 12px;
-      color: #666;
-      margin-top: 4px;
+    .section-list li::before {
+      content: "✓";
+      color: var(--primary-indigo);
+      font-weight: 900;
     }
 
-    .btn {
-      padding: 14px;
-      border: none;
-      border-radius: 8px;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .btn-cancel {
+    .preview-frame-container {
       flex: 1;
-      background: #f7fafc;
-      color: #333;
+      padding: 40px;
+      display: flex;
+      justify-content: center;
+      overflow: auto;
     }
 
-    .btn-cancel:hover {
-      background: #e2e8f0;
-    }
-
-    .btn-primary {
-      flex: 2;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-    }
-
-    .btn-primary:hover {
-      transform: scale(1.02);
-    }
-
-    /* ========================================
-       섹션 버튼 상태별 스타일(정리본)
-    ======================================== */
-
-    .section-btn {
-      padding: 8px 12px;
-      border: 2px solid #e2e8f0;
+    .mockup-frame {
+      width: 375px;
+      height: 812px;
       background: white;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 600;
-      transition: all 0.2s;
+      border: 12px solid #1E293B;
+      border-radius: 48px;
+      overflow: hidden;
+      box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.25);
       position: relative;
     }
 
-    .section-btn:hover {
-      background: #f7fafc;
-      border-color: #667eea;
-    }
-
-    .section-btn.required {
-      border-color: #fbbf24;
-      background: #fffbeb;
-    }
-
-    .section-btn.required:hover {
-      border-color: #f59e0b;
-      background: #fef3c7;
-    }
-
-    .section-btn.completed {
-      border-color: #10b981;
-      background: #d1fae5;
-      color: #065f46;
-    }
-
-    .section-btn.completed:hover {
-      border-color: #059669;
-      background: #a7f3d0;
-    }
-
-    .section-btn.active {
-      background: #667eea !important;
-      color: white !important;
-      border-color: #667eea !important;
-    }
-
-    .section-btn.active.completed {
-      background: #10b981 !important;
-      border-color: #10b981 !important;
-    }
-
-    .section-btn.active.required {
-      background: #f59e0b !important;
-      border-color: #f59e0b !important;
-    }
-
-    /* 한/영 버튼 */
-    .btn-lang {
-      padding: 10px 16px;
+    /* Edit Overlay */
+    .edit-overlay {
+      display: none;
+      position: fixed;
+      top: 80px;
+      left: 0;
+      right: 0;
+      bottom: 0;
       background: white;
-      border: 2px solid #667eea;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      color: #667eea;
-      cursor: pointer;
-      transition: all 0.2s;
+      z-index: 1000;
     }
 
-    .btn-lang:hover {
-      background: #667eea;
-      color: white;
-    }
-
-    .btn-lang.active-ko {
-      background: #667eea;
-      color: white;
-    }
-
-    .btn-lang.active-en {
-      background: #764ba2;
-      color: white;
+    #editIframe {
+      width: 100%;
+      height: 100%;
+      border: none;
     }
   </style>
 </head>
 
-<body>
-  <header class="header">
-    <div class="header-left">
-      <a href="../index.html" class="btn-back">← 홈으로</a>
-      <h1 class="page-title">상세페이지 편집</h1>
-    </div>
-    <div class="header-right">
-      <button id="btnToggleLang" class="btn-lang">한글/ENG</button>
-      <button id="btnSave" class="btn-save">💾 저장</button>
-      <button id="btnExport" class="btn-export">📦 Export</button>
-    </div>
-  </header>
+<body class="dashboard-body">
+  <div class="dashboard-layout">
+    <!-- 1. Unified Slim Nav -->
+    <nav class="slim-nav">
+      <a href="../index.html" class="nav-item" data-i18n="home">홈</a>
+      <div class="nav-item active" data-i18n="detail">상세</div>
+      <a href="workbench.html" class="nav-item" data-i18n="files">파일</a>
+      <div class="nav-item" data-i18n="pay">결제</div>
+      <div class="nav-item" data-i18n="set">설정</div>
+    </nav>
 
-  <!-- 모바일 탭 바 -->
-  <div class="mobile-tab-bar">
-    <button class="tab-button active" data-tab="editor" onclick="switchMobileTab('editor')">
-      ✏️ 편집
-    </button>
-    <button class="tab-button" data-tab="preview" onclick="switchMobileTab('preview')">
-      👁️ 미리보기
-    </button>
-  </div>
-
-  <!-- 메인 컨텐츠 -->
-  <div class="detail-container">
-    <!-- 왼쪽: 편집 영역 -->
-    <aside class="editor-panel active">
-      <div class="section-nav">
-        <!-- JS로 동적 생성됨 -->
-      </div>
-
-      <div class="slot-editor" id="slotEditor">
-        <!-- JS로 동적 생성됨 -->
-      </div>
-    </aside>
-
-    <!-- 오른쪽: 미리보기 -->
-    <main class="preview-panel">
-      <div class="preview-header">
-        <div class="preview-header-left">
-          <h3>실시간 미리보기</h3>
-          <p class="preview-desc">Export 시 완성된 형태로 생성됩니다</p>
+    <!-- 2. Main Content Area -->
+    <main class="main-content">
+      <!-- Premium Glass Header -->
+      <header class="dashboard-header">
+        <div class="header-left">
+          <a href="../index.html" class="btn-back"
+            style="text-decoration:none; color:var(--text-muted); font-weight:700; margin-right:20px;"
+            data-i18n="back">뒤로가기</a>
+          <h1 style="font-size: 20px; font-weight: 900; letter-spacing: -0.02em;" data-i18n="detailTitle">상세페이지 하브</h1>
         </div>
 
-        <!-- Preview Zoom (v3.13+) -->
-        <div class="preview-header-right">
-          <div class="zoom-controls" aria-label="Preview zoom controls">
-            <button type="button" class="btn-zoom" id="btnZoomOut" title="Zoom out">−</button>
-            <span id="zoomLabel">100%</span>
-            <button type="button" class="btn-zoom" id="btnZoomIn" title="Zoom in">+</button>
-            <button type="button" class="btn-zoom btn-zoom-reset" id="btnZoomReset" title="Reset">100%</button>
+        <div class="header-right">
+          <div class="language-dropdown" style="margin-right: 24px;">
+            <button class="globe-btn" id="globeBtn">🌐</button>
+            <div class="dropdown-menu" id="langMenu">
+              <button class="menu-item" onclick="window.SellingForm.I18n.setLanguage('ko')">한국어 (KO)</button>
+              <button class="menu-item" onclick="window.SellingForm.I18n.setLanguage('en')">English (EN)</button>
+            </div>
+          </div>
+          <button id="btnBackToLibrary" class="btn-premium"
+            style="display:none; background:white; border:1px solid #E2E8F0; padding:10px 20px; border-radius:12px; font-weight:700;"
+            onclick="showGallery()" data-i18n="library">전체 목록</button>
+        </div>
+      </header>
+
+      <!-- Gallery Mode -->
+      <div id="galleryContainer" class="gallery-mode">
+        <div class="gallery-header">
+          <h2 data-i18n="premiumTemplates">Premium Templates</h2>
+          <p data-i18n="galleryDesc">고객의 구매를 부르는 최적의 상세페이지 템플릿을 선택하세요.</p>
+        </div>
+        <div id="templateGrid" class="template-grid">
+          <!-- JS Rendering -->
+        </div>
+      </div>
+
+      <!-- Preview Mode -->
+      <div id="previewContainer" class="preview-content" style="display:none;">
+        <aside class="preview-sidebar">
+          <h3 id="previewName">템플릿 이름</h3>
+          <p id="previewDesc">템플릿 설명</p>
+
+          <h4
+            style="font-size:12px; font-weight:900; color:#94A3B8; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:16px;"
+            data-i18n="includedSections">포함된 섹션</h4>
+          <ul id="sectionList" class="section-list">
+            <!-- JS Rendering -->
+          </ul>
+
+          <div style="margin-top:auto;">
+            <button class="btn-premium"
+              style="width:100%; padding:20px; background:var(--primary-indigo); color:white; border:none; border-radius:18px; font-weight:800; font-size:16px; margin-bottom:12px; cursor:pointer;"
+              onclick="startEditing()" data-i18n="buildYours">이 템플릿으로 제작하기</button>
+            <button class="btn-premium"
+              style="width:100%; padding:16px; background:white; border:1px solid #E2E8F0; border-radius:18px; font-weight:700; color:#64748B; cursor:pointer;"
+              onclick="downloadSample()" data-i18n="getRaw">샘플 다운로드 (HTML)</button>
+          </div>
+        </aside>
+
+        <div class="preview-frame-container">
+          <div class="mockup-frame">
+            <iframe id="previewIframe"></iframe>
           </div>
         </div>
-      </div>
-      <!-- .canvas-wrapper: zoom wheel listener + 중앙정렬/패딩 스타일 (detail.js/detail.css 공통) -->
-      <div class="preview-canvas-container canvas-wrapper">
-        <canvas id="previewCanvas" width="860" height="5000"></canvas>
       </div>
     </main>
   </div>
 
-  <!-- AI 문구 생성 모달 -->
-  <div class="modal" id="aiModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>✨ AI 문구 생성</h3>
-        <button onclick="closeAiModal()">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label>제품명</label>
-          <input type="text" id="aiProductName" placeholder="예: 프리미엄 비타민C 세럼" />
-        </div>
-        <div class="form-group">
-          <label>키워드 (3개 이상, 쉼표로 구분)</label>
-          <input type="text" id="aiKeywords" placeholder="예: 미백, 탄력, 보습" />
-        </div>
-        <div class="form-group">
-          <label>톤 &amp; 매너</label>
-          <select id="aiTone">
-            <option value="professional">전문적</option>
-            <option value="friendly">친근함</option>
-            <option value="luxurious">고급스러움</option>
-            <option value="urgent">긴급함</option>
-          </select>
-        </div>
-        <button id="btnGenerateAi" class="btn btn-primary" style="width: 100%;">
-          문구 생성하기
-        </button>
-        <div id="aiResults" style="margin-top: 20px; display: none;">
-          <!-- AI 결과 -->
-        </div>
-      </div>
-    </div>
+  <!-- Edit Mode (Fullscreen Overlay) -->
+  <div id="editMode" class="edit-overlay">
+    <iframe id="editIframe"></iframe>
   </div>
 
-  <!-- Export 모달 -->
-  <div class="modal" id="exportModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Export 옵션</h3>
-        <button onclick="closeExportModal()">✕</button>
-      </div>
-
-      <div class="modal-body">
-        <div class="form-group">
-          <label>프로젝트 이름</label>
-          <input type="text" id="exportProjectName" placeholder="예: my-product-page" />
-        </div>
-
-        <div class="form-group">
-          <label>Export 형식</label>
-
-          <label class="export-type-option">
-            <input type="radio" name="exportType" value="image" checked onchange="toggleExportOptions(this.value)" />
-            <div>
-              <div class="option-title">📦 이미지로 Export</div>
-              <p class="option-desc">PNG/JPG/WEBP 이미지 파일로 슬라이스하여 다운로드</p>
-            </div>
-          </label>
-
-          <label class="export-type-option">
-            <input type="radio" name="exportType" value="html" onchange="toggleExportOptions(this.value)" />
-            <div>
-              <div class="option-title">🌐 HTML로 Export</div>
-              <p class="option-desc">실제 작동하는 웹페이지(HTML + CSS + 이미지)</p>
-            </div>
-          </label>
-
-          <label class="export-type-option">
-            <input type="radio" name="exportType" value="both" onchange="toggleExportOptions(this.value)" />
-            <div>
-              <div class="option-title">🎁 둘 다 Export</div>
-              <p class="option-desc">이미지와 HTML 모두 별도 ZIP으로 다운로드</p>
-            </div>
-          </label>
-        </div>
-
-        <div id="imageOptions">
-          <div class="form-group">
-            <label>이미지 형식</label>
-            <select id="exportFormat">
-              <option value="png">PNG (고품질, 투명 지원)</option>
-              <option value="jpg">JPG (작은 용량)</option>
-              <option value="webp">WEBP (최적화)</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>슬라이스 높이 (px)</label>
-            <input type="number" id="exportSliceHeight" value="1200" min="500" max="3000" step="100" />
-            <div class="form-hint">💡 높이가 클수록 파일 개수가 줄어듭니다 (권장: 1200px)</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button onclick="closeExportModal()" class="btn btn-cancel">취소</button>
-        <button onclick="handleExport()" class="btn btn-primary">🚀 Export 시작</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- JS 파일들 -->
-  <script src="../js/app.js"></script>
-  <script src="../js/db.js"></script>
-  <script src="../js/guards.js"></script>
-  <script src="../js/export.js"></script>
-  <script src="../js/detail.js"></script>
-
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="../js/app.js?v=3.9.1"></script>
   <script>
-    // ========================================
-    // 모바일 탭 전환 (event.target 의존 제거)
-    // ========================================
-    function switchMobileTab(tab) {
-      const editorPanel = document.querySelector('.editor-panel');
-      const previewPanel = document.querySelector('.preview-panel');
-
-      document.querySelectorAll('.tab-button').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.tab === tab);
-      });
-
-      if (tab === 'editor') {
-        editorPanel.classList.add('active');
-        previewPanel.classList.remove('active');
-      } else {
-        editorPanel.classList.remove('active');
-        previewPanel.classList.add('active');
+    // Language Dictionary
+    window.i18n = {
+      ko: {
+        detailTitle: '상세페이지 허브',
+        premiumTemplates: '프리미엄 템플릿',
+        galleryDesc: '매출을 높이는 고퀄리티 상세페이지 디자인을 선택하세요.',
+        includedSections: '구성된 섹션',
+        buildYours: '이 템플릿으로 제작하기',
+        getRaw: '샘플 다운로드 (HTML)',
+        back: '뒤로가기',
+        library: '전체 목록',
+        detail: '상세'
+      },
+      en: {
+        detailTitle: 'Detail Page Hub',
+        premiumTemplates: 'Premium Templates',
+        galleryDesc: 'Select a high-conversion template to start building.',
+        includedSections: 'Included Sections',
+        buildYours: 'Build Yours Now',
+        getRaw: 'Get Raw Assets (HTML)',
+        back: 'Back',
+        library: 'All Templates',
+        detail: 'Detail'
       }
+    };
+
+    const TEMPLATES = [
+      { id: 'cosmetic', name: '화장품 프리미엄', desc: '뷰티/스킨케어 제품에 최적화된 고급스럽고 깨끗한 디자인', icon: '💄', color: '#FFF1F2', tags: ['뷰티', '스킨케어', '프리미엄'], sections: ['히어로 배너', '제품 특징', '성분 정보', '사용 방법', '리뷰', '구매 정보'] },
+      { id: 'electronics', name: '감성 테크/가전', desc: '가전/IT 제품을 위한 깔끔하고 신뢰감 있는 현대적인 디자인', icon: '📱', color: '#F8FAFC', tags: ['가전', 'IT', '테크'], sections: ['제품 이미지', '핵심 스펙', '기능 설명', '비교표', '구성품', 'FAQ'] },
+      { id: 'food', name: '신선 식품/미식', desc: '식품/건강기능식품을 위한 신선하고 입맛을 돋우는 디자인', icon: '🍎', color: '#F0FDF4', tags: ['식품', '건강', '유기농'], sections: ['메인 비주얼', '제품 소개', '영양 정보', '원재료', '섭취 방법', '인증마크'] },
+      { id: 'fashion', name: '트렌디 패션', desc: '의류/잡화를 위한 감각적이고 세련된 디자인', icon: '👗', color: '#FAFAFA', tags: ['패션', '의류', '액세서리'], sections: ['룩북 이미지', '제품 정보', '사이즈 가이드', '소재 정보', '스타일링 팁', '배송/교환'] },
+      { id: 'furniture', name: '모던 홈/가구', desc: '홈퍼니싱 제품을 위한 따뜻하고 포근한 인테리어 디자인', icon: '🛋️', color: '#FEFBEB', tags: ['가구', '인테리어', '홈'], sections: ['공간 연출', '제품 상세', '사이즈/규격', '소재 정보', '조립 안내', '배송 정보'] },
+      { id: 'supplement', name: '메디컬/영양제', desc: '영양제/건강식품을 위한 신뢰도 높은 전문적 디자인', icon: '💊', color: '#F0FDFA', tags: ['건강', '영양제', '웰니스'], sections: ['제품 소개', '핵심 성분', '효능/효과', '섭취 방법', '주의사항', '인증서'] }
+    ];
+
+    let selectedTemplate = null;
+
+    function renderGallery() {
+      const grid = document.getElementById('templateGrid');
+      grid.innerHTML = TEMPLATES.map(t => `
+                <div class="template-card" onclick="openPreview('${t.id}')">
+                    <div class="template-thumbnail" style="background: ${t.color}">
+                        <span>${t.icon}</span>
+                    </div>
+                    <div class="template-info">
+                        <h3>${t.name}</h3>
+                        <p>${t.desc}</p>
+                        <div class="template-tags">
+                            ${t.tags.map(tag => `<span class="template-tag">${tag}</span>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
     }
 
-    // ========================================
-    // Export 옵션 표시/숨김
-    // ========================================
-    function toggleExportOptions(exportType) {
-      const imageOptions = document.getElementById('imageOptions');
-      imageOptions.style.display = (exportType === 'html') ? 'none' : 'block';
+    function openPreview(id) {
+      selectedTemplate = TEMPLATES.find(t => t.id === id);
+      document.getElementById('galleryContainer').style.display = 'none';
+      document.getElementById('previewContainer').style.display = 'flex';
+      document.getElementById('btnBackToLibrary').style.display = 'block';
+
+      document.getElementById('previewName').textContent = selectedTemplate.name;
+      document.getElementById('previewDesc').textContent = selectedTemplate.desc;
+      document.getElementById('sectionList').innerHTML = selectedTemplate.sections.map(s => `<li>${s}</li>`).join('');
+      document.getElementById('previewIframe').srcdoc = `<html><body style="background:${selectedTemplate.color}"><h1 style="text-align:center; margin-top:100px;">${selectedTemplate.icon}<br>${selectedTemplate.name}</h1></body></html>`;
     }
 
-    // ========================================
-    // Export 실행
-    // ========================================
-    async function handleExport() {
-      // (현재는 스텁) 필수 항목 체크 로직이 필요하면 detail.js와 연결해서 확장
-      const missingRequired = checkMissingRequired();
-      if (missingRequired.length > 0) {
-        const sectionNames = missingRequired.join(', ');
-        if (!confirm(`다음 섹션의 필수 항목이 비어있습니다:\n${sectionNames}\n\n계속 진행하시겠습니까?`)) {
-          return;
-        }
-      }
-
-      const exportType = document.querySelector('input[name="exportType"]:checked').value;
-      const projectName = document.getElementById('exportProjectName').value || 'sellingform-project';
-
-      const options = {
-        projectName,
-        sliceHeight: parseInt(document.getElementById('exportSliceHeight')?.value, 10) || 1200,
-        format: document.getElementById('exportFormat')?.value || 'png'
-      };
-
-      closeExportModal();
-
-      if (window.SellingForm && window.SellingForm.Utils) {
-        window.SellingForm.Utils.showLoading('Export 중...');
-      }
-
-      try {
-        const projectData = window.detailBuilderState?.projectData;
-        if (!projectData) {
-          alert('프로젝트 데이터를 찾을 수 없습니다.');
-          if (window.SellingForm && window.SellingForm.Utils) window.SellingForm.Utils.hideLoading();
-          return;
-        }
-
-        const success = await window.SellingForm.Export.startExport(exportType, projectData, options);
-
-        if (window.SellingForm && window.SellingForm.Utils) {
-          window.SellingForm.Utils.hideLoading();
-        }
-
-        if (success) {
-          if (window.SellingForm && window.SellingForm.Toast) {
-            window.SellingForm.Toast.show('Export 완료!', 2000);
-          } else {
-            alert('Export 완료!');
-          }
-        }
-      } catch (error) {
-        console.error('Export 실패:', error);
-        if (window.SellingForm && window.SellingForm.Utils) window.SellingForm.Utils.hideLoading();
-        alert('Export 중 오류가 발생했습니다: ' + (error?.message || error));
-      }
+    function showGallery() {
+      document.getElementById('galleryContainer').style.display = 'block';
+      document.getElementById('previewContainer').style.display = 'none';
+      document.getElementById('editMode').style.display = 'none';
+      document.getElementById('btnBackToLibrary').style.display = 'none';
     }
 
-    function checkMissingRequired() {
-      // TODO: detail.js에 템플릿 스펙/required 체크를 노출하면 여기서 연결 가능
-      return [];
+    function startEditing() {
+      document.getElementById('editMode').style.display = 'block';
+      document.getElementById('editIframe').src = `detail-editor.html?template=${selectedTemplate.id}`;
     }
 
-    function openExportModal() {
-      document.getElementById('exportModal').classList.add('active');
+    function downloadSample() {
+      alert('준비 중인 기능입니다.');
     }
 
-    function closeExportModal() {
-      document.getElementById('exportModal').classList.remove('active');
-    }
-
-    function closeAiModal() {
-      document.getElementById('aiModal').classList.remove('active');
-    }
-
-    // 버튼 이벤트 바인딩
-    document.addEventListener('DOMContentLoaded', function () {
-      const btnExport = document.getElementById('btnExport');
-      if (btnExport) btnExport.addEventListener('click', openExportModal);
-
-      // 모달 배경 클릭 닫기
-      const exportModal = document.getElementById('exportModal');
-      const aiModal = document.getElementById('aiModal');
-
-      if (exportModal) {
-        exportModal.addEventListener('click', function (e) {
-          if (e.target === this) closeExportModal();
-        });
-      }
-
-      if (aiModal) {
-        aiModal.addEventListener('click', function (e) {
-          if (e.target === this) closeAiModal();
-        });
-      }
-    });
+    window.addEventListener('DOMContentLoaded', renderGallery);
   </script>
 </body>
+
+</html>
+
 </html>
