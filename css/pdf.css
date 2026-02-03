@@ -1,0 +1,375 @@
+/* pdf.css - SellingForm v3.9 Premium PDF Style */
+
+:root {
+    --primary-indigo: #4F46E5;
+    --indigo-gradient: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+    --bg-main: #F1F5F9;
+    --border-color: #E2E8F0;
+    --text-main: #1E293B;
+    --text-muted: #64748B;
+    --soft-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    --deep-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    --header-height: 80px;
+}
+
+body {
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    font-family: 'Pretendard', 'Inter', sans-serif;
+    margin: 0;
+}
+
+/* Glass Header Integration */
+.editor-header {
+    height: var(--header-height);
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.btn-back {
+    text-decoration: none;
+    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.btn-back:hover {
+    background: #F1F5F9;
+    color: var(--primary-indigo);
+}
+
+.header-right {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-premium {
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.btn-save {
+    background: white;
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+}
+
+.btn-save:hover {
+    background: #F8FAFC;
+    border-color: var(--primary-indigo);
+}
+
+.btn-export {
+    background: var(--indigo-gradient);
+    color: white;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.btn-export:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
+}
+
+/* Main Layout */
+.pdf-container {
+    display: flex;
+    height: calc(100vh - var(--header-height));
+}
+
+/* Sidebar Styling */
+.thumbnail-panel {
+    width: 240px;
+    background: white;
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-header {
+    padding: 24px;
+    border-bottom: 1px solid #F1F5F9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.panel-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-main);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.thumbnail-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.thumbnail-item {
+    background: white;
+    border: 2px solid #E2E8F0;
+    border-radius: 12px;
+    cursor: pointer;
+    overflow: hidden;
+    position: relative;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    min-height: 100px;
+}
+
+.thumbnail-item:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary-indigo);
+    box-shadow: var(--deep-shadow);
+}
+
+.thumbnail-item.active {
+    border-color: var(--primary-indigo);
+    background: #EEF2FF;
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15);
+}
+
+.thumbnail-item canvas {
+    width: 100%;
+    height: auto !important;
+    border-radius: 6px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    background: white;
+    display: block;
+}
+
+.page-num {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--text-muted);
+    background: #F1F5F9;
+    padding: 2px 8px;
+    border-radius: 20px;
+}
+
+.thumbnail-item.active .page-num {
+    background: var(--primary-indigo);
+    color: white;
+}
+
+/* Editor Panel */
+.editor-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #E2E8F0;
+}
+
+.toolbar {
+    height: 64px;
+    background: white;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+}
+
+.tool-group {
+    display: flex;
+    background: #F1F5F9;
+    padding: 4px;
+    border-radius: 12px;
+    gap: 4px;
+}
+
+.tool-btn {
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.tool-btn.active {
+    background: white;
+    color: var(--primary-indigo);
+    box-shadow: var(--soft-shadow);
+}
+
+.zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.zoom-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border-color);
+    background: white;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 800;
+}
+
+/* Canvas Area */
+.preview-viewport {
+    flex: 1;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    padding: 60px;
+    background: #CBD5E1;
+}
+
+.canvas-container {
+    position: relative;
+    box-shadow: var(--deep-shadow);
+    background: white;
+    border-radius: 4px;
+}
+
+.dropzone {
+    width: 480px;
+    height: 320px;
+    border: 3px dashed #94A3B8;
+    border-radius: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    cursor: pointer;
+}
+
+.dropzone:hover {
+    border-color: var(--primary-indigo);
+    background: white;
+}
+
+.drop-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+}
+
+/* Modal Styling - Fixed for modal-overlay */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(8px);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+/* Page Delete Button Style */
+.btn-page-del {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 22px;
+    height: 22px;
+    background: rgba(239, 68, 68, 0.9);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 10;
+}
+
+.thumbnail-item:hover .btn-page-del {
+    opacity: 1;
+}
+
+.thumbnail-item canvas {
+    max-width: 140px;
+    height: auto !important;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background: white;
+}
+
+.page-num {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.btn-page-del:hover {
+    transform: scale(1.1);
+    background: #dc2626;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 32px;
+    padding: 40px;
+    width: 400px;
+    text-align: center;
+    box-shadow: var(--deep-shadow);
+}
+
+.modal-content h2 {
+    font-size: 24px;
+    font-weight: 800;
+    margin-bottom: 12px;
+}
+
+.btn-primary {
+    width: 100%;
+    padding: 14px;
+    background: var(--indigo-gradient);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    margin-top: 24px;
+    cursor: pointer;
+}
