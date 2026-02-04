@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amazon Listing Generator - SellingForm v3.9</title>
+    <!-- Premium Fonts -->
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="../css/app.css?v=3.9.1">
+    <link rel="stylesheet" href="../css/index.css?v=3.9.1"> <!-- Dashboard Base -->
+    <link rel="stylesheet" href="../css/amazon.css?v=3.9.1">
+</head>
+
+<body class="dashboard-body">
+    <div class="dashboard-layout">
+        <!-- 1. Unified Slim Nav (Transplanted) -->
+        <nav class="slim-nav">
+            <a href="../index.html" class="nav-item" data-i18n="home">홈</a>
+            <div class="nav-item active" data-i18n="ai">AI</div>
+            <a href="workbench.html" class="nav-item" data-i18n="files">파일</a>
+            <div class="nav-item" data-i18n="pay">결제</div>
+            <div class="nav-item" data-i18n="set">설정</div>
+        </nav>
+
+        <!-- 2. Main Content Area -->
+        <main class="main-content">
+            <!-- Premium Glass Header -->
+            <header class="dashboard-header">
+                <div class="header-left" style="display:flex; align-items:center;">
+                    <a href="../index.html" class="btn-back"
+                        style="text-decoration:none; color:var(--text-muted); font-weight:700; margin-right:20px; white-space:nowrap;"
+                        data-i18n="back">뒤로가기</a>
+                    <div class="logo-box">A</div>
+                    <h1 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em; margin-left: 12px; white-space:nowrap;"
+                        data-i18n="amazonTitle">아마존 AI 리스팅</h1>
+                </div>
+
+                <div class="header-right">
+                    <div class="language-dropdown" style="margin-right: 24px;">
+                        <button class="globe-btn" id="globeBtn">🌐</button>
+                        <div class="dropdown-menu" id="langMenu">
+                            <button class="menu-item" onclick="window.SellingForm.I18n.setLanguage('ko')">한국어
+                                (KO)</button>
+                            <button class="menu-item" onclick="window.SellingForm.I18n.setLanguage('en')">English
+                                (EN)</button>
+                        </div>
+                    </div>
+                    <button id="btnSave" class="btn-premium"
+                        style="background:white; border:1px solid #E2E8F0; margin-right:12px; padding:10px 20px; border-radius:12px; font-weight:700;"
+                        data-i18n="saveDraft">초안 저장</button>
+                    <button id="btnGenerate" class="btn-premium"
+                        style="background:var(--primary-indigo, #4F46E5); color:white; border:none; padding:10px 20px; border-radius:12px; font-weight:700;"
+                        data-i18n="generate">리스팅 생성</button>
+                </div>
+            </header>
+
+            <!-- Amazon Dashboard Body -->
+            <div class="amazon-dashboard-grid"
+                style="display: grid; grid-template-columns: 400px 1fr; gap: 24px; padding: 32px; height: calc(100vh - 80px); overflow: hidden;">
+                <!-- Left: Input Panel -->
+                <aside class="premium-card"
+                    style="background:white; border-radius:24px; padding:32px; border:1px solid #E2E8F0; overflow-y:auto; box-shadow: var(--soft-shadow);">
+                    <h3 style="font-size:18px; font-weight:800; margin-bottom:24px;" data-i18n="inputTitle">상품 정보 입력
+                    </h3>
+
+                    <div class="input-section" style="margin-bottom:32px;">
+                        <label style="display:block; font-size:13px; font-weight:700; color:#64748B; margin-bottom:8px;"
+                            data-i18n="prodName">상품명</label>
+                        <input type="text" id="productName" placeholder="예: 무선 노이즈 캔슬링 헤드폰"
+                            style="width:100%; padding:14px; border-radius:12px; border:1px solid #E2E8F0; font-size:14px;"
+                            data-i18n="prodNamePlaceholder">
+                    </div>
+
+                    <div class="input-section" style="margin-bottom:32px;">
+                        <label style="display:block; font-size:13px; font-weight:700; color:#64748B; margin-bottom:8px;"
+                            data-i18n="category">카테고리</label>
+                        <select id="category"
+                            style="width:100%; padding:14px; border-radius:12px; border:1px solid #E2E8F0; font-size:14px; background:white;">
+                            <option value="electronics" data-i18n="catElec">가전제품</option>
+                            <option value="beauty" data-i18n="catBeauty">뷰티 & 퍼스널 케어</option>
+                            <option value="home" data-i18n="catHome">홈 & 키친</option>
+                            <option value="fashion" data-i18n="catFashion">패션</option>
+                        </select>
+                    </div>
+
+                    <div class="input-section" style="margin-bottom:32px;">
+                        <label
+                            style="display:block; font-size:13px; font-weight:700; color:#64748B; margin-bottom:12px;"
+                            data-i18n="outputLang">결과물 언어</label>
+                        <div style="display:flex; gap:16px;">
+                            <label style="display:flex; align-items:center; gap:8px; font-size:14px; cursor:pointer;">
+                                <input type="radio" name="outputLang" value="ko" checked> <span
+                                    data-i18n="koResult">한국어</span>
+                            </label>
+                            <label style="display:flex; align-items:center; gap:8px; font-size:14px; cursor:pointer;">
+                                <input type="radio" name="outputLang" value="en"> <span
+                                    data-i18n="enResult">English</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="input-section">
+                        <label style="display:block; font-size:13px; font-weight:700; color:#64748B; margin-bottom:8px;"
+                            data-i18n="keywords">키워드 (최대 10개)</label>
+                        <div id="keywordList" style="display:flex; flex-direction:column; gap:12px;">
+                            <input type="text" class="keyword-input" placeholder="키워드 1: 40시간 배터리"
+                                style="width:100%; padding:14px; border-radius:12px; border:1px solid #E2E8F0;"
+                                data-i18n="kw1Placeholder">
+                            <input type="text" class="keyword-input" placeholder="키워드 2: 블루투스 5.3"
+                                style="width:100%; padding:14px; border-radius:12px; border:1px solid #E2E8F0;"
+                                data-i18n="kw2Placeholder">
+                        </div>
+                        <button type="button" id="btnAddKeyword"
+                            style="width:100%; margin-top:16px; padding:12px; background:#F8FAFC; border:1px dashed #CBD5E1; border-radius:12px; font-weight:700; color:#64748B; cursor:pointer;"
+                            data-i18n="addKw">+ 키워드 추가</button>
+                    </div>
+                </aside>
+
+                <!-- Right: Result Area -->
+                <section style="display:flex; flex-direction:column; gap:24px; overflow-y:auto;">
+                    <!-- Bullet Points Card -->
+                    <div class="premium-card"
+                        style="background:white; border-radius:24px; padding:32px; border:1px solid #E2E8F0; box-shadow:var(--soft-shadow);">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+                            <h3 style="font-size:18px; font-weight:800;" data-i18n="bullets">아마존 불렛 포인트</h3>
+                            <span
+                                style="background:var(--success-bg, #F0FDF4); color:var(--success-text, #16A34A); padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700;"
+                                data-i18n="aiOptimized">AI 최적화</span>
+                        </div>
+                        <div id="bulletContainer" style="display:flex; flex-direction:column; gap:16px;">
+                            <div style="text-align:center; padding:60px; color:#94A3B8; font-weight:600;"
+                                data-i18n="generateHint">키워드를 입력하고 생성을 클릭하세요</div>
+                        </div>
+                    </div>
+
+                    <!-- Description Card -->
+                    <div class="premium-card"
+                        style="background:white; border-radius:24px; padding:32px; border:1px solid #E2E8F0; box-shadow:var(--soft-shadow);">
+                        <h3 style="font-size:18px; font-weight:800; margin-bottom:24px;" data-i18n="description">상품 상세
+                            설명</h3>
+                        <div style="position:relative;">
+                            <textarea id="productDescription" readonly placeholder="AI가 생성한 설명이 여기에 표시됩니다..."
+                                style="width:100%; height:200px; padding:20px; border-radius:16px; border:1px solid #F1F5F9; background:#F8FAFC; font-size:14px; line-height:1.6; resize:none; outline:none;"
+                                data-i18n="descPlaceholder"></textarea>
+                            <button class="btn-copy" onclick="copyToClipboard('productDescription')"
+                                style="position:absolute; bottom:16px; right:16px; padding:8px 16px; background:var(--text-main, #1E293B); color:white; border:none; border-radius:8px; font-weight:700; font-size:12px; cursor:pointer;"
+                                data-i18n="copyText">텍스트 복사</button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../js/db.js?v=3.9.1"></script>
+    <script src="../js/app.js?v=3.9.1"></script>
+    <script>
+        // Local Page I18n
+        window.i18n = {
+            ko: {
+                amazonTitle: '아마존 AI 리스팅',
+                saveDraft: '초안 저장',
+                generate: '리스팅 생성',
+                inputTitle: '상품 정보 입력',
+                prodName: '상품명',
+                prodNamePlaceholder: '예: 무선 노이즈 캔슬링 헤드폰',
+                category: '카테고리',
+                catElec: '가전제품',
+                catBeauty: '뷰티 & 퍼스널 케어',
+                catHome: '홈 & Kitchen',
+                catFashion: '패션',
+                keywords: '키워드 (최대 10개)',
+                kw1Placeholder: '키워드 1: 40시간 배터리',
+                kw2Placeholder: '키워드 2: 블루투스 5.3',
+                addKw: '+ 키워드 추가',
+                bullets: '아마존 불렛 포인트',
+                aiOptimized: 'AI 최적화',
+                generateHint: '키워드를 입력하고 생성을 클릭하세요',
+                description: '상품 상세 설명',
+                descPlaceholder: 'AI가 생성한 설명이 여기에 표시됩니다...',
+                copyText: '텍스트 복사',
+                langSwitch: '언어 전환',
+                outputLang: '결과물 언어',
+                koResult: '한국어',
+                enResult: 'English'
+            },
+            en: {
+                amazonTitle: 'AMAZON AI LISTING',
+                saveDraft: 'SAVE DRAFT',
+                generate: 'GENERATE LISTING',
+                inputTitle: 'PRODUCT INFO',
+                prodName: 'PRODUCT NAME',
+                prodNamePlaceholder: 'e.g. Wireless Noise Cancelling Headphones',
+                category: 'CATEGORY',
+                catElec: 'Electronics',
+                catBeauty: 'Beauty & Personal Care',
+                catHome: 'Home & Kitchen',
+                catFashion: 'Fashion',
+                keywords: 'KEYWORDS (MAX 10)',
+                kw1Placeholder: 'Keyword 1: 40h Battery Life',
+                kw2Placeholder: 'Keyword 2: Bluetooth 5.3',
+                addKw: '+ ADD KEYWORD',
+                bullets: 'AMAZON BULLET POINTS',
+                aiOptimized: 'AI OPTIMIZED',
+                generateHint: 'Input Keywords and Click Generate',
+                description: 'PRODUCT DESCRIPTION',
+                descPlaceholder: 'AI generated description will appear here...',
+                copyText: 'COPY TEXT',
+                langSwitch: 'Switch Language',
+                outputLang: 'Output Language',
+                koResult: 'Korean',
+                enResult: 'English'
+            }
+        };
+    </script>
+    <script src="../js/amazon.js?v=3.9.1"></script>
+</body>
+
+</html>
