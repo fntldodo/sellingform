@@ -208,6 +208,10 @@
         document.getElementById('btnRotatePage')?.addEventListener('click', () => {
             rotateCurrentPage(); // v3.9.49 handles multi-selection inside
         });
+        document.getElementById('btnHelp')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showModal('helpModal');
+        });
 
         // 툴바 버튼
         document.querySelectorAll('.tool-btn').forEach(btn => {
@@ -304,7 +308,28 @@
         // 서명 캔버스 관련함수는 전역에 노출 (onclick용)
         window.clearSignaturePad = clearSignaturePad;
         window.saveSignature = saveSignature;
-        window.closeModal = closeModal;
+
+        // Modal Helpers (Robust Standalone)
+        window.showModal = (id) => {
+            const m = document.getElementById(id);
+            if (m) {
+                m.classList.add('active');
+                m.style.display = 'flex';
+                document.body.style.overflow = 'hidden'; // Prevent background scrolling
+                SF_LOG(`Modal opened: ${id}`);
+            } else {
+                console.error(`Modal not found: ${id}`);
+            }
+        };
+        window.closeModal = (id) => {
+            const m = document.getElementById(id);
+            if (m) {
+                m.classList.remove('active');
+                m.style.display = 'none';
+                document.body.style.overflow = '';
+                SF_LOG(`Modal closed: ${id}`);
+            }
+        };
 
         // 줌 컨트롤
         document.getElementById('btnZoomIn')?.addEventListener('click', () => updateZoom(0.1));
@@ -411,8 +436,8 @@
             SF_LOG('Calculating stabilized auto-scale (v3.9.21)...');
             try {
                 const isMobile = window.innerWidth < 768;
-                const paddingW = isMobile ? 20 : 100;
-                const paddingH = isMobile ? 60 : 100;
+                const paddingW = isMobile ? 10 : 100; // Reduced from 20 for tighter fit
+                const paddingH = isMobile ? 20 : 100; // Reduced from 60
 
                 const baseWidth = document.body.clientWidth || window.innerWidth;
                 const baseHeight = window.innerHeight;
@@ -421,7 +446,7 @@
                     ? document.querySelector('.thumbnail-panel').offsetHeight
                     : 0;
                 const headerHeight = document.querySelector('.dashboard-header')?.offsetHeight || 60;
-                const toolbarHeight = document.querySelector('.toolbar')?.offsetHeight || 70;
+                const toolbarHeight = document.querySelector('.toolbar')?.offsetHeight || 60; // Adjusted ref
 
                 const sidePanelWidth = (!isMobile && document.querySelector('.thumbnail-panel'))
                     ? document.querySelector('.thumbnail-panel').offsetWidth
@@ -445,9 +470,15 @@
                 let targetZoomH = availableHeight / pageHeightAt15;
 
                 // 가로와 세로 중 더 많이 줄여야 하는 배율을 선택하여 한눈에 보이게 함
-                let targetZoom = Math.min(targetZoomW, targetZoomH);
+                // v3.9.52: Mobile should fit width (allow scrolling), Desktop fits best fit
+                let targetZoom;
+                if (isMobile) {
+                    targetZoom = targetZoomW; // Mobile: Fit Width
+                } else {
+                    targetZoom = Math.min(targetZoomW, targetZoomH); // Desktop: Fit Page
+                }
 
-                const maxZoom = isMobile ? 1.0 : 1.5;
+                const maxZoom = isMobile ? 1.5 : 1.5; // Allow slightly more zoom on mobile default
                 targetZoom = Math.max(0.1, Math.min(targetZoom, maxZoom));
 
                 if (Math.abs(State.zoom - targetZoom) < 0.05) {

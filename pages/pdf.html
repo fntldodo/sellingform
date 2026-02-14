@@ -20,7 +20,8 @@
 <body class="dashboard-body">
     <div class="dashboard-layout">
         <!-- 1. Unified Slim Nav (Shared) -->
-        <nav class="slim-nav" id="slimNav">
+        <!-- Nav Removed for Standalone Mode -->
+        <nav class="slim-nav" id="slimNav" style="display: none;">
             <a href="../index.html" class="nav-item" data-i18n="home">홈</a>
             <div class="nav-item active" data-i18n="pdf">PDF</div>
             <a href="workbench.html" class="nav-item" data-i18n="files">파일</a>
@@ -34,10 +35,10 @@
             <header class="dashboard-header">
                 <div class="header-left">
                     <button id="btnToggleNav" class="btn-tool-icon"
-                        style="margin-right: 15px; font-size: 20px; border:none; background:none; cursor:pointer;">☰</button>
-                    <a href="../index.html" class="btn-back"
-                        style="text-decoration:none; color:var(--text-muted); font-weight:700; margin-right:20px;"
-                        data-i18n="back">뒤로가기</a>
+                        style="margin-right: 15px; font-size: 20px; border:none; background:none; cursor:pointer; display:none;">☰</button>
+                    <button onclick="if(confirm('모든 작업 내용이 초기화됩니다. 계속하시겠습니까?')) location.reload()" class="btn-back"
+                        style="text-decoration:none; color:var(--text-muted); font-weight:700; margin-right:20px; border:none; background:none; cursor:pointer; font-size:16px;"
+                        data-i18n="refresh">🔄 새로고침</button>
                     <div class="logo-box">PDF</div>
                     <h1 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em; margin-left: 12px;"
                         data-i18n="pdfTitle">PDF 퀵 에디터</h1>
@@ -59,9 +60,9 @@
                     </div>
                     <button id="btnExportImage" class="btn-premium"
                         style="background:white; border:1px solid #E2E8F0; margin-right:12px; padding:10px 20px; border-radius:12px; font-weight:700;"
-                        data-i18n="exportImg">이미지 추출</button>
+                        data-i18n="exportImg">그림으로 저장</button>
                     <button id="btnSave" class="btn-premium"
-                        style="background:white; border:1px solid #E2E8F0; margin-right:12px; padding:10px 20px; border-radius:12px; font-weight:700;"
+                        style="background:white; border:1px solid #E2E8F0; margin-right:12px; padding:10px 20px; border-radius:12px; font-weight:700; display:none;"
                         data-i18n="saveWork">작업 저장</button>
                     <button id="btnDownload" class="btn-premium"
                         style="background:var(--primary-indigo); color:white; border:none; padding:10px 20px; border-radius:12px; font-weight:700;"
@@ -114,7 +115,8 @@
                                 style="margin-right: 5px;">현 페이지 삭제</button>
                             <button id="btnClear" class="tool-btn btn-danger" data-i18n="clearAll">전체 삭제</button>
                             <div class="tool-divider"></div>
-                            <button id="btnHelp" class="tool-btn help-btn" title="도움말">?</button>
+                            <button id="btnHelp" class="tool-btn help-btn" title="도움말"
+                                onclick="showModal('helpModal')">?</button>
                         </div>
 
                         <!-- v3.9.25: Marker Options Bar -->
@@ -235,39 +237,58 @@
         <div class="modal-overlay" id="helpModal">
             <div class="modal-content help-modal-content" style="max-width: 600px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
-                    <h2 style="margin:0; font-size:20px; font-weight:800;">💡 PDF 에디터 사용법 가이드</h2>
-                    <button class="close-modal-btn" onclick="closeModal('helpModal')">×</button>
+                    <h2 style="margin:0; font-size:20px; font-weight:800; color:var(--primary-indigo);">💡 PDF 퀵 에디터 사용법
+                    </h2>
+                    <button class="close-modal-btn" onclick="closeModal('helpModal')"
+                        style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-muted);">×</button>
                 </div>
 
                 <div class="help-section">
-                    <h3>🖱️ 페이지 선택 및 관리</h3>
+                    <h3>📁 기본 조작</h3>
                     <ul>
-                        <li><strong>일반 클릭</strong>: 해당 페이지만 단독 선택합니다.</li>
-                        <li><strong>Ctrl (Cmd) + 클릭</strong>: 원하는 페이지를 하나씩 다중 선택합니다.</li>
-                        <li><strong>Shift + 클릭</strong>: 선택한 페이지 사이의 모든 범위를 선택합니다.</li>
-                        <li><strong>드래그 & 드롭</strong>: 왼쪽 썸네일을 끌어서 페이지 순서를 바꿀 수 있습니다.</li>
+                        <li><strong>PDF 열기</strong>: 파일을 화면에 드래그하거나 중앙 영역을 클릭하세요.</li>
+                        <li><strong>추가 (병합)</strong>: 왼쪽 사이드바 상단의 <span
+                                style="color:var(--primary-indigo); font-weight:700;">[추가]</span> 버튼으로 다른 PDF나 이미지를 현재
+                            문서 끝에 붙일 수 있습니다.</li>
                     </ul>
                 </div>
 
                 <div class="help-section">
-                    <h3>🔄 회전 및 편집</h3>
+                    <h3>🖱️ 페이지 편집</h3>
                     <ul>
-                        <li><strong>90° 회전</strong>: 선택된 모든 페이지를 일괄 회전시킵니다.</li>
-                        <li><strong>추적성</strong>: 썸네일 아래에 <code>현재번호 (원본번호)</code>가 항상 표시되어 이동 경로 확인이 쉽습니다.</li>
+                        <li><strong>순서 변경</strong>: 왼쪽 썸네일을 드래그하여 페이지 순서를 바꿀 수 있습니다.</li>
+                        <li><strong>회전</strong>: 페이지를 선택하고 <span style="font-weight:700;">[90° 회전]</span> 버튼을 누르면 회전됩니다.
+                        </li>
+                        <li><strong>삭제</strong>: 썸네일 위의 <span style="color:red; font-weight:700;">[×]</span> 버튼이나 상단
+                            <span style="color:red; font-weight:700;">[현 페이지 삭제]</span>를 사용하세요.
+                        </li>
+                        <li><strong>다중 선택</strong>: <code>Ctrl</code> (또는 <code>Cmd</code>) 키를 누른 채 클릭하면 여러 페이지를 선택해 일괄
+                            회전/삭제가 가능합니다.</li>
                     </ul>
                 </div>
 
                 <div class="help-section">
-                    <h3>⌨️ 유용한 단축키</h3>
-                    <div class="shortcut-grid">
-                        <div class="shortcut-item"><span>실행 취소</span> <kbd>Ctrl + Z</kbd></div>
-                        <div class="shortcut-item"><span>다중 선택</span> <kbd>Ctrl (Cmd) + Click</kbd></div>
-                    </div>
+                    <h3>✏️ 도구 모음</h3>
+                    <ul>
+                        <li><strong>선택</strong>: 편집한 요소를 다시 선택하여 이동하거나 크기를 조절합니다.</li>
+                        <li><strong>마커</strong>: 중요 부분을 형광펜(노랑/빨강)으로 강조하거나 검정색으로 가립니다.</li>
+                        <li><strong>텍스트</strong>: 원하는 위치에 글자를 추가합니다. (폰트/크기/색상 변경 가능)</li>
+                        <li><strong>번호 넣기</strong>: 페이지에 번호를 자동으로 매기거나 직접 입력합니다.</li>
+                        <li><strong>서명</strong>: 마우스나 터치로 서명하여 문서에 삽입합니다.</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h3>💾 저장 및 내보내기</h3>
+                    <ul>
+                        <li><strong>그림으로 저장</strong>: 현재 보고 있는 페이지를 고화질 이미지로 저장합니다.</li>
+                        <li><strong>PDF 내보내기</strong>: 편집된 모든 내용을 포함한 최종 PDF 파일을 다운로드합니다.</li>
+                    </ul>
                 </div>
 
                 <button class="btn-premium"
-                    style="width: 100%; margin-top: 24px; background: var(--primary-indigo); color: white; border: none; padding: 16px; border-radius: 12px; font-weight: 700; cursor: pointer;"
-                    onclick="closeModal('helpModal')">확인했습니다</button>
+                    style="width: 100%; margin-top: 12px; background: var(--primary-indigo); color: white; border: none; padding: 16px; border-radius: 12px; font-weight: 700; cursor: pointer;"
+                    onclick="closeModal('helpModal')">닫기</button>
             </div>
         </div>
 
