@@ -433,11 +433,12 @@
         if (autoScaleTimeout) clearTimeout(autoScaleTimeout);
         autoScaleTimeout = setTimeout(async () => {
             isAutoScaleInProgress = true;
-            SF_LOG('Calculating stabilized auto-scale (v3.9.21)...');
+            // SF_LOG('Calculating stabilized auto-scale (v3.9.53)...');
             try {
                 const isMobile = window.innerWidth < 768;
-                const paddingW = isMobile ? 10 : 100; // Reduced from 20 for tighter fit
-                const paddingH = isMobile ? 20 : 100; // Reduced from 60
+                // v3.9.53: Mobile needs very little padding to maximize screen usage
+                const paddingW = isMobile ? 4 : 80;
+                const paddingH = isMobile ? 10 : 80;
 
                 const baseWidth = document.body.clientWidth || window.innerWidth;
                 const baseHeight = window.innerHeight;
@@ -446,7 +447,7 @@
                     ? document.querySelector('.thumbnail-panel').offsetHeight
                     : 0;
                 const headerHeight = document.querySelector('.dashboard-header')?.offsetHeight || 60;
-                const toolbarHeight = document.querySelector('.toolbar')?.offsetHeight || 60; // Adjusted ref
+                const toolbarHeight = document.querySelector('.toolbar')?.offsetHeight || 60;
 
                 const sidePanelWidth = (!isMobile && document.querySelector('.thumbnail-panel'))
                     ? document.querySelector('.thumbnail-panel').offsetWidth
@@ -458,31 +459,40 @@
                 if (availableWidth <= 0) { isAutoScaleInProgress = false; return; }
 
                 const page = await State.pdfjsDoc.getPage(State.currentPageIdx + 1);
+                // v3.9.53: Use scale 1.0 viewport for calculation base
                 const rawViewport = page.getViewport({
                     scale: 1.0,
                     rotation: State.pages[State.currentPageIdx]?.rotation || 0
                 });
 
+                // NOTE: The canvas is rendered at scale * 1.5 in renderCurrentPage
+                // So we want (rawViewport.width * 1.5) * targetZoom = availableWidth
+                // => targetZoom = availableWidth / (rawViewport.width * 1.5)
                 const pageWidthAt15 = rawViewport.width * 1.5;
                 const pageHeightAt15 = rawViewport.height * 1.5;
 
                 let targetZoomW = availableWidth / pageWidthAt15;
                 let targetZoomH = availableHeight / pageHeightAt15;
 
-                // 가로와 세로 중 더 많이 줄여야 하는 배율을 선택하여 한눈에 보이게 함
-                // v3.9.52: Mobile should fit width (allow scrolling), Desktop fits best fit
                 let targetZoom;
                 if (isMobile) {
-                    targetZoom = targetZoomW; // Mobile: Fit Width
+                    // Mobile: Fit Width exactly
+                    targetZoom = targetZoomW;
                 } else {
-                    targetZoom = Math.min(targetZoomW, targetZoomH); // Desktop: Fit Page
+                    // Desktop: Fit Page (whichever is smaller)
+                    targetZoom = Math.min(targetZoomW, targetZoomH);
                 }
 
-                const maxZoom = isMobile ? 1.5 : 1.5; // Allow slightly more zoom on mobile default
-                targetZoom = Math.max(0.1, Math.min(targetZoom, maxZoom));
+                // Range clamping
+                // Mobile typically needs up to 3.0x to read small text
+                const maxZoom = isMobile ? 3.0 : 2.0;
+                const minZoom = 0.1;
 
-                if (Math.abs(State.zoom - targetZoom) < 0.05) {
-                    SF_LOG('Scale change too small, skipping');
+                targetZoom = Math.max(minZoom, Math.min(targetZoom, maxZoom));
+
+                // Avoid jitter: only apply if change is significant (> 1%)
+                if (Math.abs(State.zoom - targetZoom) < 0.01) {
+                    // SF_LOG('Scale change too small, skipping');
                     isAutoScaleInProgress = false;
                     return;
                 }
@@ -493,14 +503,14 @@
                     zoomLevelEl.textContent = `${Math.round(State.zoom * 100)}%`;
                 }
 
-                SF_LOG(`Auto-scaled to: ${Math.round(targetZoom * 100)}% (View: ${baseWidth}x${baseHeight})`);
+                SF_LOG(`Auto-scaled to: ${Math.round(targetZoom * 100)}% (Mobile=${isMobile})`);
                 await renderCurrentPage();
             } catch (err) {
                 SF_LOG('Error during auto-scale:', err.message);
             } finally {
                 isAutoScaleInProgress = false;
             }
-        }, isMobileWidth ? 400 : 50);
+        }, isMobileWidth ? 200 : 100);
     }
 
     async function renderAllPages() {

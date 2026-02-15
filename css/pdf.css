@@ -536,7 +536,7 @@ body {
     }
 
     .header-right {
-        gap: 6px !important;
+        gap: 4px !important;
     }
 
     .header-right .btn-premium {
@@ -587,20 +587,24 @@ body {
     .preview-viewport {
         padding: 10px !important;
         background: #F1F5F9 !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
+        display: block !important;
+        /* Changed from flex to block to allow scrolling */
         overflow: auto !important;
-        /* Allow scrolling if zoomed */
+        -webkit-overflow-scrolling: touch !important;
         flex: 1 !important;
         width: 100% !important;
+        text-align: center;
+        /* Center the canvas wrapper */
     }
 
     .canvas-container {
-        margin: auto !important;
-        /* Center in viewport */
+        margin: 0 auto !important;
+        /* Center horizontally if smaller than viewport */
+        display: inline-block;
+        /* Allow container to expand beyond viewport for scrolling */
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
         background: white !important;
+        vertical-align: top;
     }
 
     /* Fixed Bottom Toolbar */
