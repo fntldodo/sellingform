@@ -18,6 +18,20 @@
         }
     }
 
+    // --- v3.9.50: Global Spinner Helper ---
+    function showSpinner(msg = '처리 중...') {
+        const el = document.getElementById('globalSpinner');
+        const txt = document.getElementById('spinnerText');
+        if (el) {
+            if (txt) txt.textContent = msg;
+            el.style.display = 'flex';
+        }
+    }
+    function hideSpinner() {
+        const el = document.getElementById('globalSpinner');
+        if (el) el.style.display = 'none';
+    }
+
     // PDF.js worker 설정
     if (window.pdfjsLib) {
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -58,7 +72,10 @@
         markerOpacity: 0.5,
 
         // v3.9.47: Structural Undo
-        history: [] // Stack of snapshots for undo
+        history: [], // Stack of snapshots for undo
+
+        // v3.9.54: Operation Lock
+        isProcessing: false
     };
 
     /**
@@ -358,6 +375,7 @@
     // ============================================================
     async function handleFileSelect(file) {
         SF_LOG('File selected:', file.name);
+        showSpinner('문서 로딩 중...'); // Show spinner
         try {
             if (!file || file.type !== 'application/pdf') {
                 throw new Error('올바른 PDF 파일이 아닙니다.');
@@ -415,8 +433,10 @@
             await performAutoScale();
 
             SF_LOG('All pages rendered successfully');
+            hideSpinner(); // Done loading
 
         } catch (err) {
+            hideSpinner();
             SF_LOG('FAILURE in handleFileSelect:', err.message);
             console.error('PDF 로드 실패:', err);
             alert('PDF 파일을 읽는 중 오류가 발생했습니다: ' + (err.message || 'Unknown error'));
@@ -431,13 +451,18 @@
 
         const isMobileWidth = window.innerWidth < 768;
         if (autoScaleTimeout) clearTimeout(autoScaleTimeout);
+        // v3.9.53: Increased debounce time to prevent trashing
         autoScaleTimeout = setTimeout(async () => {
             isAutoScaleInProgress = true;
             SF_LOG('Calculating stabilized auto-scale (v3.9.21)...');
             try {
+                // ... logic same ...
                 const isMobile = window.innerWidth < 768;
-                const paddingW = isMobile ? 10 : 100; // Reduced from 20 for tighter fit
-                const paddingH = isMobile ? 20 : 100; // Reduced from 60
+                // [Optimization] Only re-render if zoom triggers a meaningful change or first load
+                // Skipping exact duplicate check for now to ensure correctness
+
+                const paddingW = isMobile ? 10 : 100;
+                const paddingH = isMobile ? 20 : 100;
 
                 const baseWidth = document.body.clientWidth || window.innerWidth;
                 const baseHeight = window.innerHeight;
@@ -446,7 +471,7 @@
                     ? document.querySelector('.thumbnail-panel').offsetHeight
                     : 0;
                 const headerHeight = document.querySelector('.dashboard-header')?.offsetHeight || 60;
-                const toolbarHeight = document.querySelector('.toolbar')?.offsetHeight || 60; // Adjusted ref
+                const toolbarHeight = document.querySelector('.toolbar')?.offsetHeight || 60;
 
                 const sidePanelWidth = (!isMobile && document.querySelector('.thumbnail-panel'))
                     ? document.querySelector('.thumbnail-panel').offsetWidth
@@ -469,8 +494,6 @@
                 let targetZoomW = availableWidth / pageWidthAt15;
                 let targetZoomH = availableHeight / pageHeightAt15;
 
-                // 가로와 세로 중 더 많이 줄여야 하는 배율을 선택하여 한눈에 보이게 함
-                // v3.9.52: Mobile should fit width (allow scrolling), Desktop fits best fit
                 let targetZoom;
                 if (isMobile) {
                     targetZoom = targetZoomW; // Mobile: Fit Width
@@ -478,7 +501,7 @@
                     targetZoom = Math.min(targetZoomW, targetZoomH); // Desktop: Fit Page
                 }
 
-                const maxZoom = isMobile ? 1.5 : 1.5; // Allow slightly more zoom on mobile default
+                const maxZoom = isMobile ? 1.5 : 1.5;
                 targetZoom = Math.max(0.1, Math.min(targetZoom, maxZoom));
 
                 if (Math.abs(State.zoom - targetZoom) < 0.05) {
@@ -500,7 +523,7 @@
             } finally {
                 isAutoScaleInProgress = false;
             }
-        }, isMobileWidth ? 400 : 50);
+        }, isMobileWidth ? 500 : 200); // Increased debounce
     }
 
     async function renderAllPages() {
@@ -519,33 +542,33 @@
         }
         const numPages = State.pdfjsDoc.numPages;
 
+        // v3.9.53: Intersection Observer for Lazy Loading
+        const observerOptions = {
+            root: thumbnailList,
+            rootMargin: '200px', // Pre-load 200px before viewport
+            threshold: 0.01
+        };
+
+        const imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const thumbItem = entry.target;
+                    const pageIdx = parseInt(thumbItem.dataset.index);
+                    loadThumbnail(thumbItem, pageIdx, oldPages);
+                    observer.unobserve(thumbItem); // Stop observing once loaded
+                }
+            });
+        }, observerOptions);
+
         for (let i = 1; i <= numPages; i++) {
-            const page = await State.pdfjsDoc.getPage(i);
-            const existingPageData = oldPages[i - 1];
-            const rotation = (existingPageData && existingPageData.rotation) ? existingPageData.rotation : 0;
-            const viewport = page.getViewport({ scale: 0.35, rotation: rotation }); // v3.9.49: Adjusted to 0.35 for 2-column suitability
-
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d', { willReadFrequently: true });
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-
-            await page.render({ canvasContext: context, viewport: viewport }).promise;
-
-            // 원본 번호 결정: 기존 데이터가 있으면 유지, 없으면 새로운 번호 부여
-            const originalIdx = (existingPageData && existingPageData.originalIdx !== undefined)
-                ? existingPageData.originalIdx
-                : i;
-
+            // Skeleton / Placeholder Item
             const item = document.createElement('div');
-            item.className = 'thumb-item'; // Match CSS class v3.9.41
-            // v3.9.49: Support multi-selection highlight visually
-            const isSelected = State.selectedPageIndices.includes(i - 1);
-            if (isSelected) item.classList.add('active');
+            item.className = 'thumb-item';
             item.dataset.index = i - 1;
             item.draggable = true;
 
-            // Drag and Drop Events
+            // ... drag events omitted for brevity, but should be re-attached ...
+            // Drag and Drop Events (Re-attached)
             item.ondragstart = (e) => {
                 e.dataTransfer.setData('text/plain', i - 1);
                 item.style.opacity = '0.4';
@@ -564,6 +587,7 @@
                 if (fromIdx !== toIdx) await movePage(fromIdx, toIdx);
             };
 
+            // Basic Structure (Skeleton)
             // 1. Delete Button
             const btnDel = document.createElement('button');
             btnDel.className = 'btn-page-del';
@@ -574,57 +598,117 @@
             };
             item.appendChild(btnDel);
 
-            // 2. Page Canvas (Preview)
-            item.appendChild(canvas);
+            // 2. Placeholder Container for Canvas
+            const canvasContainer = document.createElement('div');
+            canvasContainer.className = 'thumb-canvas-placeholder';
+            canvasContainer.style.width = '100%';
+            canvasContainer.style.height = '140px'; // Approx height
+            canvasContainer.style.background = '#f1f5f9';
+            canvasContainer.style.display = 'flex';
+            canvasContainer.style.alignItems = 'center';
+            canvasContainer.style.justifyContent = 'center';
+            canvasContainer.innerHTML = '<span style="font-size:10px; color:#cbd5e1;">Loading...</span>';
+            item.appendChild(canvasContainer);
 
-            // 3. Page Number (Current & Original)
+            // 3. Page Number
+            const originalIdx = (oldPages[i - 1] && oldPages[i - 1].originalIdx !== undefined)
+                ? oldPages[i - 1].originalIdx
+                : i;
             const spanNum = document.createElement('span');
             spanNum.className = 'page-num';
-            spanNum.style.pointerEvents = 'none'; // v3.9.49: Prevent blocking clicks
-
-            // 현재 번호와 원본 번호 병기 (v3.9.50: Always show for traceability)
-            const currentNum = i;
-            spanNum.innerHTML = `${currentNum} <span style="font-size: 10px; opacity: 0.6; font-weight: 500;">(원본 ${originalIdx})</span>`;
-
+            spanNum.style.pointerEvents = 'none';
+            spanNum.innerHTML = `${i} <span style="font-size: 10px; opacity: 0.6; font-weight: 500;">(원본 ${originalIdx})</span>`;
             item.appendChild(spanNum);
 
-            // 4. Rotation Badge (v3.9.49)
-            if (rotation !== 0) {
-                const badge = document.createElement('span');
-                badge.className = 'rotation-badge';
-                badge.textContent = `${rotation}°`;
-                item.appendChild(badge);
-            }
-
+            // Click Event
             item.addEventListener('click', (e) => {
                 SF_LOG('Thumbnail clicked:', i - 1);
-                selectPage(i - 1, e); // v3.9.49: Pass event for multi-select
+                selectPage(i - 1, e);
             });
-            thumbnailList.appendChild(item);
 
+            // Add Init data to State immediately (with empty thumbnailCanvas)
             State.pages.push({
                 id: i,
-                originalIdx: originalIdx, // 원본 순서 보관
-                thumbnailCanvas: canvas,
+                originalIdx: originalIdx,
+                thumbnailCanvas: null, // Will be populated by lazy loader
                 rotation: (oldPages[i - 1] && oldPages[i - 1].rotation) ? oldPages[i - 1].rotation : 0,
                 annotations: (oldPages[i - 1] && oldPages[i - 1].annotations) ? oldPages[i - 1].annotations : []
             });
-            SF_LOG(`Rendered thumbnail for page ${i}`);
+
+            thumbnailList.appendChild(item);
+
+            // Observe for lazy loading
+            imageObserver.observe(item);
         }
 
         if (State.currentPageIdx >= numPages) {
             State.currentPageIdx = numPages - 1;
         }
 
-        // Ensure current page is selected and rendered, or show placeholder if no pages
+        // Highlight active
+        if (State.selectedPageIndices.length > 0) {
+            document.querySelectorAll('.thumb-item').forEach((item, i) => {
+                const isSelected = State.selectedPageIndices.includes(i);
+                item.classList.toggle('active', isSelected);
+            });
+        }
+
+        // Ensure current page is selected and rendered
         if (State.currentPageIdx >= 0) {
-            // v3.9.49: Use sync-only call to avoid multi-select accumulation
             await selectPage(State.currentPageIdx);
         } else {
             const container = document.getElementById('canvasContainer');
             if (container) {
                 container.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:#94A3B8; font-weight:700; font-size:18px;">편집할 페이지를 선택하세요 (다중 선택 가능).</div>';
             }
+        }
+    }
+
+    // Lazy Loader Helper
+    async function loadThumbnail(itemWrap, pageIdx, oldPages) {
+        if (!State.pdfjsDoc) return;
+        try {
+            const pageNum = pageIdx + 1;
+            const page = await State.pdfjsDoc.getPage(pageNum);
+
+            // Get rotation from state (it was pushed in the loop above)
+            const rotation = State.pages[pageIdx] ? State.pages[pageIdx].rotation : 0;
+            const viewport = page.getViewport({ scale: 0.35, rotation: rotation });
+
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d', { willReadFrequently: true });
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            await page.render({ canvasContext: context, viewport: viewport }).promise;
+
+            // Replace Placeholder
+            const placeholder = itemWrap.querySelector('.thumb-canvas-placeholder');
+            if (placeholder) {
+                placeholder.replaceWith(canvas);
+            } else {
+                // If structure changed unexpectedly
+                itemWrap.insertBefore(canvas, itemWrap.querySelector('.page-num'));
+            }
+
+            // Update State with the real canvas
+            if (State.pages[pageIdx]) {
+                State.pages[pageIdx].thumbnailCanvas = canvas;
+            }
+
+            // Add Rotation Badge if needed
+            if (rotation !== 0) {
+                // Check if exists
+                if (!itemWrap.querySelector('.rotation-badge')) {
+                    const badge = document.createElement('span');
+                    badge.className = 'rotation-badge';
+                    badge.textContent = `${rotation}°`;
+                    itemWrap.appendChild(badge);
+                }
+            }
+
+        } catch (err) {
+            console.error('Thumbnail load failed for page', pageIdx, err);
         }
     }
 
@@ -1231,23 +1315,38 @@
         const indices = State.selectedPageIndices.length > 0 ? State.selectedPageIndices : [State.currentPageIdx];
         if (indices.length === 0 || indices[0] < 0) return;
 
-        await saveHistory();
+        showSpinner('페이지 회전 중...');
+        try {
+            await saveHistory();
 
-        for (const idx of indices) {
-            if (!State.pages[idx]) continue;
-            let currentRot = State.pages[idx].rotation || 0;
-            State.pages[idx].rotation = (currentRot + 90) % 360;
+            for (const idx of indices) {
+                if (!State.pages[idx]) continue;
+                let currentRot = State.pages[idx].rotation || 0;
+                State.pages[idx].rotation = (currentRot + 90) % 360;
+            }
+
+            State.isModified = true;
+            renderCurrentPage();
+            await renderAllPages(); // Update thumbnails (essential for rotation feedback)
+        } catch (err) {
+            alert('회전 중 오류가 발생했습니다: ' + err.message);
+        } finally {
+            hideSpinner();
         }
-
-        State.isModified = true;
-        renderCurrentPage();
-        await renderAllPages(); // Update thumbnails (essential for rotation feedback)
     }
 
     async function movePage(fromIdx, toIdx) {
+        if (State.isProcessing) {
+            SF_LOG('Operation blocked: Processing in progress');
+            return;
+        }
+        State.isProcessing = true;
+
         SF_LOG(`Moving page from ${fromIdx} to ${toIdx}`);
-        await saveHistory(); // Capture before move
+        showSpinner('페이지 이동 중...');
         try {
+            await saveHistory(); // Capture before move
+
             // 1. pdf-lib state update
             const [movedPage] = await State.pdfDoc.copyPages(State.pdfDoc, [fromIdx]);
             State.pdfDoc.insertPage(toIdx > fromIdx ? toIdx + 1 : toIdx, movedPage);
@@ -1260,6 +1359,12 @@
             // 3. Sync and Save
             const pdfBytes = await State.pdfDoc.save();
             State.originalBytes = pdfBytes;
+
+            // Cleanup old doc if exists to free memory
+            if (State.pdfjsDoc) {
+                if (typeof State.pdfjsDoc.destroy === 'function') State.pdfjsDoc.destroy();
+                State.pdfjsDoc = null;
+            }
 
             // Re-load pdf-lib doc to keep clean
             State.pdfDoc = await (window.PDFLib || window.pdfLib).PDFDocument.load(State.originalBytes);
@@ -1284,10 +1389,15 @@
         } catch (err) {
             SF_LOG('FAILURE in movePage:', err.message);
             alert('페이지 이동 중 오류가 발생했습니다: ' + err.message);
+        } finally {
+            hideSpinner();
+            State.isProcessing = false;
         }
     }
 
     async function deletePage(indices) {
+        if (State.isProcessing) return; // Silent block or alert?
+
         const targetIndices = Array.isArray(indices) ? indices : [indices];
         if (targetIndices.length === 0) return;
 
@@ -1296,9 +1406,12 @@
             : `선택한 ${targetIndices.length}개의 페이지를 모두 삭제하시겠습니까?`;
 
         if (!confirm(msg)) return;
-        await saveHistory(); // Capture before delete
 
+        State.isProcessing = true;
+        showSpinner('삭제 중...');
         try {
+            await saveHistory(); // Capture before delete
+
             // 원본에서 삭제 시 인덱스가 밀리는 것을 방지하기 위해 내림차순 정렬
             targetIndices.sort((a, b) => b - a);
 
@@ -1309,6 +1422,13 @@
 
             const pdfBytes = await State.pdfDoc.save();
             State.originalBytes = pdfBytes;
+
+            // Cleanup
+            if (State.pdfjsDoc && typeof State.pdfjsDoc.destroy === 'function') {
+                State.pdfjsDoc.destroy();
+                State.pdfjsDoc = null;
+            }
+
             // Re-load into pdf-lib to keep internal state clean
             State.pdfDoc = await (window.PDFLib || window.pdfLib).PDFDocument.load(State.originalBytes);
 
@@ -1328,10 +1448,15 @@
         } catch (err) {
             console.error('페이지 삭제 실패:', err);
             alert('페이지 삭제 중 오류가 발생했습니다.');
+        } finally {
+            hideSpinner();
+            State.isProcessing = false;
         }
     }
 
     async function appendPdf(file) {
+        if (State.isProcessing) return;
+
         // 만약 기본 문서가 없다면, 첫 번째 문서로 업로드 처리
         if (!State.pdfDoc) {
             if (file.type === 'application/pdf') {
@@ -1342,13 +1467,21 @@
             return;
         }
 
+        State.isProcessing = true;
+        showSpinner('파일 병합 중...');
         try {
             const arrayBuffer = await file.arrayBuffer();
             const lib = window.PDFLib || window.pdfLib;
 
             // 삽입 위치 결정 (v3.9.39)
+            // ... (keep prompt logic, but might be annoying inside try block if it blocks UI rendering of spinner?)
+            // Ideally prompt before showSpinner, but prompt blocks thread anyway, so spinner won't show/animate well.
+            // Let's hide spinner for prompt, then show again.
+            hideSpinner();
             const totalPages = State.pages.length;
             const targetPos = prompt(`어디에 삽입할까요? (1 ~ ${totalPages + 1} 사이 숫자 입력)\n입력하지 않으면 맨 뒤에 추가됩니다.`);
+            showSpinner('병합 처리 중...');
+
             let targetIdx = totalPages; // 기본값: 맨 뒤
 
             if (targetPos && targetPos.trim() !== '') {
@@ -1396,6 +1529,13 @@
 
             const pdfBytes = await State.pdfDoc.save();
             State.originalBytes = pdfBytes;
+
+            // Cleanup
+            if (State.pdfjsDoc && typeof State.pdfjsDoc.destroy === 'function') {
+                State.pdfjsDoc.destroy();
+                State.pdfjsDoc = null;
+            }
+
             State.pdfDoc = await lib.PDFDocument.load(State.originalBytes);
 
             // Also refresh pdfjsDoc
@@ -1412,6 +1552,9 @@
         } catch (err) {
             SF_LOG('FAILURE in appendPdf:', err.message);
             alert('파일 추가 중 오류가 발생했습니다: ' + err.message);
+        } finally {
+            hideSpinner();
+            State.isProcessing = false;
         }
     }
 
