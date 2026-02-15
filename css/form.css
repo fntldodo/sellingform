@@ -1,0 +1,767 @@
+/* ============================================================
+   SellingForm v3.9 - High Fidelity Premium Dashboard
+   Pixel-Perfect alignment with v3.9 Mockup
+   ============================================================ */
+
+:root {
+    --nav-width: 80px;
+    --edit-width: 340px;
+    --header-height: 80px;
+    --accent: #4F46E5;
+    --accent-gradient: linear-gradient(135deg, #4F46E5 0%, #3730A3 100%);
+    --bg-main: #F1F5F9;
+    --bg-card: #FFFFFF;
+    --text-main: #1E293B;
+    --text-muted: #94A3B8;
+    --border-color: #E2E8F0;
+    --soft-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
+    --deep-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.12);
+}
+
+.dashboard-body {
+    background: var(--bg-main);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: var(--text-main);
+    font-family: 'Inter', 'Pretendard', sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Glassmorphism Header */
+.dashboard-header {
+    height: var(--header-height);
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+    z-index: 1000;
+    position: sticky;
+    top: 0;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.editor-header h1 {
+    font-size: 24px;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    color: #0F172A;
+}
+
+.header-search {
+    flex: 0 1 400px;
+    position: relative;
+    margin: 0 40px;
+}
+
+.header-search input {
+    width: 100%;
+    padding: 12px 20px 12px 44px;
+    background: #F8FAFC;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    font-size: 14px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.header-search input:focus {
+    background: white;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.08);
+}
+
+.header-search::before {
+    content: '🔍';
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    opacity: 0.5;
+}
+
+/* 2. Builder Grid & Sidebar Accordion */
+.builder-grid {
+    display: grid;
+    grid-template-columns: 340px 1fr 320px;
+    height: calc(100vh - var(--header-height));
+    overflow: hidden;
+    background: var(--bg-main);
+}
+
+.sidebar {
+    width: 100%;
+    height: 100%;
+    background: #FFFFFF;
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    gap: 16px;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+    box-sizing: border-box;
+}
+
+/* More prominent scrollbar for better UX visibility */
+.sidebar::-webkit-scrollbar {
+    width: 10px;
+    display: block;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: #F8FAFC;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: #CBD5E1;
+    border-radius: 20px;
+    border: 2px solid #F8FAFC;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: #94A3B8;
+}
+
+/* Accordion Card Styles */
+.accordion-card {
+    background: #FFFFFF;
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--soft-shadow);
+    flex-shrink: 0;
+    /* CRITICAL: Prevent squishing so sidebar can scroll */
+    display: flex;
+    flex-direction: column;
+}
+
+.accordion-header {
+    padding: 16px 20px;
+    background: #F8FAFC;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    border-bottom: 1px solid transparent;
+    transition: all 0.2s;
+}
+
+.accordion-header:hover {
+    background: #F1F5F9;
+}
+
+.header-title {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.toggle-icon {
+    font-size: 10px;
+    color: var(--text-muted);
+    transition: transform 0.3s ease;
+}
+
+.accordion-content {
+    padding: 20px;
+    max-height: none;
+    /* Removed fixed height to allow full content display */
+    opacity: 1;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    flex: 1;
+}
+
+
+
+/* Collapsed State */
+.accordion-card.collapsed .accordion-content {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.accordion-card.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+.accordion-card.collapsed .accordion-header {
+    border-bottom: 1px solid transparent;
+}
+
+/* Progressive Disclosure Override */
+.hidden-initial {
+    display: none !important;
+}
+
+.edit-card.show {
+    display: block !important;
+    animation: slideInUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Category Floating Card (like the popup in mockup) */
+.category-popup {
+    background: #FFFFFF;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: var(--soft-shadow);
+    border: 1px solid var(--border-color);
+}
+
+.category-popup-title {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    padding-left: 8px;
+}
+
+.popup-item {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.popup-item:hover {
+    background: #F1F5F9;
+}
+
+.popup-item.active {
+    background: #EEF2FF;
+    color: var(--accent);
+}
+
+/* Form Sections */
+.edit-card {
+    background: #FFFFFF;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: var(--soft-shadow);
+    border: 1px solid var(--border-color);
+}
+
+.edit-card h3 {
+    font-size: 15px;
+    font-weight: 800;
+    margin-bottom: 20px;
+    color: #0F172A;
+}
+
+/* Form Fields Mockup Style */
+.form-field {
+    margin-bottom: 20px;
+}
+
+.form-field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.form-field input,
+.form-field textarea {
+    width: 100%;
+    background: #F8FAFC;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 14px;
+    color: var(--text-main);
+    outline: none;
+    transition: all 0.2s;
+}
+
+.form-field input:focus {
+    background: white;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.05);
+}
+
+/* Main Content Area */
+.preview-area,
+.preview-stage {
+    flex: 1;
+    background: #E2E8F0;
+    padding: 40px;
+    overflow-y: auto;
+    overflow-x: auto;
+    /* Force scroll if needed */
+    display: flex;
+    gap: 32px;
+    align-items: flex-start;
+}
+
+/* A4 Sheet Mockup Style */
+.a4-sheet {
+    width: 210mm;
+    min-height: 297mm;
+    background: #FFFFFF;
+    box-shadow: var(--deep-shadow);
+    border-radius: 8px;
+    padding: 24mm;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    /* CRITICAL: Protect against flex squishing */
+    flex-shrink: 0;
+    box-sizing: border-box;
+    transform-origin: top center;
+    position: relative;
+}
+
+/* Stability: Table row height in Editor (Before entry) */
+.a4-sheet .doc-table td,
+.a4-sheet .doc-table th {
+    min-height: 48px !important;
+    height: 48px;
+    /* Support empty cells */
+}
+
+/* Floating Result Card (Calculated Area) */
+.calculation-card {
+    background: #FFFFFF;
+    border: 1px solid #4F46E5;
+    border-radius: 20px;
+    padding: 24px;
+    width: 320px;
+    box-shadow: var(--soft-shadow);
+    position: relative;
+}
+
+.calc-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    font-size: 15px;
+}
+
+.calc-total {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 2px solid #F1F5F9;
+    display: flex;
+    justify-content: space-between;
+    font-size: 20px;
+    font-weight: 800;
+    color: #0F172A;
+}
+
+/* Right Detail Sidebar (The "Digital Learning Suite" card) */
+.detail-sidebar {
+    width: 320px;
+    /* Matched with builder-grid columns */
+    height: 100%;
+    background: #FFFFFF;
+    border-left: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+.detail-img-box {
+    width: 100%;
+    height: 240px;
+    background: #F1F5F9;
+    border-radius: 16px;
+    margin-bottom: 24px;
+    overflow: hidden;
+    position: relative;
+}
+
+.promo-badge {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: #EF4444;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-weight: 800;
+    font-size: 13px;
+}
+
+.btn-add-quote {
+    width: 100%;
+    background: var(--accent-gradient);
+    color: white;
+    padding: 16px;
+    border-radius: 14px;
+    font-weight: 800;
+    font-size: 15px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(79, 70, 229, 0.3);
+    transition: all 0.2s;
+}
+
+.btn-add-quote:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(79, 70, 229, 0.4);
+}
+
+/* Modals Refined */
+#googleDocsModal,
+#genericCopyModal {
+    backdrop-filter: blur(16px);
+}
+
+/* ============================================================
+   Document Template Styles (Restored)
+   ============================================================ */
+.doc-header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #1E293B;
+}
+
+.doc-header h1 {
+    font-size: 32px !important;
+    font-weight: 900 !important;
+    margin: 0;
+    color: #1E293B !important;
+}
+
+.doc-info {
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.doc-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 24px;
+}
+
+.doc-table th,
+.doc-table td {
+    border: 1px solid #E2E8F0;
+    padding: 12px 16px;
+    font-size: 14px;
+    text-align: left;
+}
+
+.doc-table th {
+    background: #F8FAFC;
+    font-weight: 700;
+    color: #64748B;
+    width: 120px;
+}
+
+.doc-section {
+    margin-bottom: 32px;
+}
+
+.doc-section h3 {
+    font-size: 16px !important;
+    font-weight: 800 !important;
+    margin-bottom: 12px !important;
+    color: #1E293B !important;
+}
+
+.doc-content-box {
+    min-height: 120px;
+    padding: 20px;
+    background: #F8FAFC;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.8;
+}
+
+.doc-footer {
+    margin-top: 60px;
+}
+
+.doc-footer .date {
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 32px;
+}
+
+.doc-footer .signature {
+    text-align: right;
+    font-size: 16px;
+    font-weight: 800;
+    margin-bottom: 12px;
+}
+
+.doc-footer .target {
+    text-align: right;
+    font-size: 18px;
+    font-weight: 900;
+    margin-top: 40px;
+}
+
+.editable {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.doc-address-block {
+    margin-bottom: 20px;
+    padding: 16px;
+    border: 1px dashed #E2E8F0;
+    border-radius: 12px;
+}
+
+/* Typography Overrides */
+h1,
+h2,
+h3 {
+    font-family: 'Inter', sans-serif;
+}
+
+/* ============================================================
+   v3.9 Premium Modals & Notifications
+   ============================================================ */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3000;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s ease;
+}
+
+.modal-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.modal-content {
+    background: white;
+    width: 440px;
+    padding: 44px;
+    border-radius: 36px;
+    box-shadow: var(--deep-shadow);
+    text-align: center;
+    transform: translateY(20px) scale(0.95);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.modal-overlay.show .modal-content {
+    transform: translateY(0) scale(1);
+}
+
+.modal-icon {
+    font-size: 56px;
+    margin-bottom: 24px;
+}
+
+.modal-title {
+    font-size: 24px;
+    font-weight: 900;
+    color: #1E293B;
+    margin-bottom: 12px;
+    letter-spacing: -0.04em;
+}
+
+.modal-desc {
+    font-size: 15px;
+    color: var(--text-muted);
+    line-height: 1.7;
+    margin-bottom: 36px;
+}
+
+.modal-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.btn-modal {
+    width: 100%;
+    padding: 18px;
+    border-radius: 18px;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.btn-docs {
+    background: var(--primary-indigo);
+    color: white;
+}
+
+.btn-docs:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(79, 70, 229, 0.4);
+}
+
+.btn-close-modal {
+    background: #F1F5F9;
+    color: #475569;
+}
+
+.btn-close-modal:hover {
+    background: #E2E8F0;
+}
+
+/* ============================================================
+   Hardened Print Engine (v4.2 A4 Calibration)
+   ============================================================ */
+@media print {
+
+    /* Hide ALL dashboard/web elements */
+    header,
+    footer,
+    nav,
+    aside,
+    .dashboard-header,
+    .slim-nav,
+    .sidebar,
+    .detail-sidebar,
+    .modal-overlay,
+    #copyModal,
+    .btn-premium,
+    .header-right,
+    .header-left,
+    button,
+    .editor-header,
+    .action-buttons {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    html,
+    body {
+        background: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    /* Absolute A4 Centering & Scale */
+    #a4Paper,
+    .a4-sheet {
+        position: absolute !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: 0 !important;
+        margin: 0 auto !important;
+        padding: 10mm 15mm !important;
+        /* Calibrated for 1 page */
+        width: 210mm !important;
+        min-height: 297mm !important;
+        max-height: 297mm !important;
+        box-shadow: none !important;
+        border: none !important;
+        visibility: visible !important;
+        display: block !important;
+        background: white !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+        /* Hard stop for overflow */
+    }
+
+    /* Handwriting Optimization: Balanced for Single Page */
+    .doc-table td,
+    .doc-table th {
+        height: 48px !important;
+        min-height: 48px !important;
+        border: 1px solid #000 !important;
+        vertical-align: middle !important;
+        padding: 6px 12px !important;
+        font-size: 13px !important;
+        background: transparent !important;
+        color: black !important;
+    }
+
+    .doc-header {
+        margin-bottom: 12px !important;
+        padding-bottom: 8px !important;
+        border-bottom: 2px solid #000 !important;
+    }
+
+    .doc-header h1 {
+        font-size: 24px !important;
+        margin: 0 !important;
+    }
+
+    .doc-info {
+        margin-bottom: 12px !important;
+        font-size: 12px !important;
+    }
+
+    .doc-content-box {
+        min-height: 220px !important;
+        border: 1px solid #000 !important;
+    }
+
+    .doc-footer {
+        margin-top: 20px !important;
+    }
+
+    .doc-footer .date {
+        margin-bottom: 15px !important;
+    }
+
+    .editable {
+        color: black !important;
+        text-decoration: underline !important;
+    }
+
+    /* Ensure table fits width */
+    .doc-table {
+        width: 100% !important;
+        table-layout: fixed !important;
+    }
+}
