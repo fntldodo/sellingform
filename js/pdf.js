@@ -225,9 +225,28 @@
         document.getElementById('btnRotatePage')?.addEventListener('click', () => {
             rotateCurrentPage(); // v3.9.49 handles multi-selection inside
         });
-        document.getElementById('btnHelp')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            showModal('helpModal');
+        // v3.9.68: 도움말 버튼 핸들러 (직접 연결)
+        const btnHelp = document.getElementById('btnHelp');
+        if (btnHelp) {
+            btnHelp.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                showModal('helpModal');
+            });
+        }
+
+        // v3.9.61: 새로고침 버튼 핸들러 (ID 기반 명시적 할당)
+        // v3.9.63: 새로고침 버튼 핸들러 (이벤트 위임 방식으로 변경하여 안정성 확보)
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('#btnRefresh');
+            if (btn) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (confirm('모든 작업 내용이 초기화됩니다. 계속하시겠습니까?')) {
+                    // 강력한 새로고침 (캐시 무시)
+                    window.location.reload(true);
+                }
+            }
         });
 
         // 툴바 버튼
@@ -750,9 +769,13 @@
             }
         } else {
             // Programmatic call (rendering, initialization, etc.)
-            // We usually want to sync the selection to the current index
-            State.selectedPageIndices = [idx];
-            State.currentPageIdx = idx;
+            // v3.9.56: Preserve existing selection if possible to prevent loss during redraws
+            if (State.selectedPageIndices.includes(idx)) {
+                // Keep current selection
+            } else {
+                State.selectedPageIndices = [idx];
+                State.currentPageIdx = idx;
+            }
         }
 
         // Update UI visuals
@@ -830,6 +853,8 @@
             const x = ((e.clientX - rect.left) * scaleX) / (State.zoom * 1.5);
             const y = ((e.clientY - rect.top) * scaleY) / (State.zoom * 1.5);
 
+            SF_LOG(`MouseDown: Tool=${State.currentTool}, x=${x.toFixed(2)}, y=${y.toFixed(2)}`);
+
             if (State.currentTool === 'select') {
                 const annotations = State.pages[State.currentPageIdx]?.annotations || [];
                 let found = -1;
@@ -869,10 +894,10 @@
                     if (found !== -1) {
                         const ann = annotations[found];
 
-                        // v3.9.27: Hide opacity control for signatures
+                        // v3.9.58: Hide opacity control for signatures and text
                         const opacityGroup = document.getElementById('propOpacityGroup');
                         if (opacityGroup) {
-                            opacityGroup.style.display = ann.type === 'signature' ? 'none' : 'flex';
+                            opacityGroup.style.display = (ann.type === 'signature' || ann.type === 'text') ? 'none' : 'flex';
                         }
 
                         const opacitySlider = document.getElementById('selectedOpacity');
@@ -956,6 +981,8 @@
             const endX = ((e.clientX - rect.left) * scaleX) / (State.zoom * 1.5);
             const endY = ((e.clientY - rect.top) * scaleY) / (State.zoom * 1.5);
 
+            SF_LOG(`MouseUp: Tool=${State.currentTool}, isDrawing=${State.isDrawing}, isDragging=${State.isDragging}`);
+
             if (State.isDragging) {
                 State.isDragging = false;
                 State.isModified = true;
@@ -980,11 +1007,11 @@
             const x = Math.min(State.selectionStart.x, endX);
             const y = Math.min(State.selectionStart.y, endY);
 
-            if (w > 2 && h > 2) {
+            if (State.currentTool === 'marker' && w > 2 && h > 2) {
+                SF_LOG('Processing Marker tool');
                 if (!State.pages[State.currentPageIdx].annotations) {
                     State.pages[State.currentPageIdx].annotations = [];
                 }
-                // v3.9.25: Unified marker/mask
                 State.pages[State.currentPageIdx].annotations.push({
                     type: 'marker',
                     color: State.markerColor,
@@ -994,24 +1021,10 @@
                 State.isModified = true;
                 switchToSelectTool();
             } else if (State.currentTool === 'text') {
-                const text = prompt('추가할 텍스트를 입력하세요:');
-                if (text && text.trim()) {
-                    if (!State.pages[State.currentPageIdx].annotations) {
-                        State.pages[State.currentPageIdx].annotations = [];
-                    }
-                    State.pages[State.currentPageIdx].annotations.push({
-                        type: 'text',
-                        content: text,
-                        x: endX,
-                        y: endY,
-                        color: State.textColor,
-                        fontSize: State.textFontSize,
-                        fontFamily: State.textFontFamily,
-                        opacity: 1
-                    });
-                    State.isModified = true;
-                    switchToSelectTool();
-                }
+                SF_LOG('Processing Text tool, showing overlay...');
+                addTextOverlay(State.selectionStart.x, State.selectionStart.y, canvas);
+            } else {
+                SF_LOG('No tool logic matched for currentTool:', State.currentTool);
             }
             renderAnnotations(canvas);
         };
@@ -1115,7 +1128,7 @@
             y: pos.y,
             w: 150,
             h: 80,
-            opacity: 1
+            opacity: 1 // v3.9.58: Always 1.0 for signature
         });
 
         State.isModified = true;
@@ -1131,6 +1144,89 @@
             switchToSelectTool();
             renderCurrentPage();
         }, 50);
+    }
+
+    // v3.9.60: Robust Text Input Overlay
+    function addTextOverlay(pdfX, pdfY, canvas) {
+        const container = document.getElementById('canvasContainer');
+        if (!container) return;
+
+        // v3.9.60: Remove any existing overlays first
+        document.querySelectorAll('.floating-text-input').forEach(el => el.remove());
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'floating-text-input';
+
+        // v3.9.60: Styling for professional look
+        Object.assign(input.style, {
+            position: 'absolute',
+            zIndex: '1000',
+            background: 'white',
+            border: `2px solid ${State.textColor || '#000'}`,
+            color: State.textColor || '#000',
+            fontSize: `${(State.textFontSize || 16) * State.zoom * 1.5}px`,
+            fontFamily: State.textFontFamily || 'Pretendard, Inter, sans-serif',
+            padding: '4px 8px',
+            borderRadius: '4px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            outline: 'none',
+            minWidth: '50px'
+        });
+
+        // v3.9.60: Align with canvas coordinate system
+        const scale = State.zoom * 1.5;
+        const rect = canvas.getBoundingClientRect();
+        // Since container is relative/absolute, we position relative to its top-left
+        input.style.left = (pdfX * scale) + 'px';
+        input.style.top = (pdfY * scale - (State.textFontSize || 16) * scale) + 'px';
+
+        container.appendChild(input);
+        input.focus();
+
+        const save = () => {
+            const text = input.value.trim();
+            if (text) {
+                if (!State.pages[State.currentPageIdx].annotations) {
+                    State.pages[State.currentPageIdx].annotations = [];
+                }
+                State.pages[State.currentPageIdx].annotations.push({
+                    type: 'text',
+                    content: text,
+                    x: pdfX,
+                    y: pdfY,
+                    color: State.textColor,
+                    fontSize: State.textFontSize,
+                    fontFamily: State.textFontFamily,
+                    opacity: 1
+                });
+                State.isModified = true;
+                SF_LOG('Text annotation added via overlay at:', pdfX, pdfY);
+                switchToSelectTool();
+                renderAnnotations(canvas);
+            }
+            input.remove();
+        };
+
+        const cancel = () => {
+            input.remove();
+            switchToSelectTool(); // Optional: switch back even on cancel
+        };
+
+        input.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                save();
+            } else if (e.key === 'Escape') {
+                cancel();
+            }
+        };
+
+        // v3.9.60: Handle click outside or blur
+        input.onblur = () => {
+            // Delay slightly to check if we clicked a save button or similar if we had one
+            setTimeout(save, 100);
+        };
     }
 
     function switchToSelectTool() {
@@ -1197,15 +1293,19 @@
                 ctx.font = `bold ${fSize}px ${fFamily}`;
                 ctx.fillText(ann.content, ann.x * currentScale, ann.y * currentScale);
             } else if (ann.type === 'signature') {
+                // v3.9.58: Ensure signature is visible immediately (explicit globalAlpha check)
+                ctx.globalAlpha = 1.0;
                 const img = new Image();
+                img.onload = () => {
+                    ctx.drawImage(
+                        img,
+                        ann.x * currentScale,
+                        ann.y * currentScale,
+                        ann.w * currentScale,
+                        ann.h * currentScale
+                    );
+                };
                 img.src = ann.data;
-                ctx.drawImage(
-                    img,
-                    ann.x * currentScale,
-                    ann.y * currentScale,
-                    ann.w * currentScale,
-                    ann.h * currentScale
-                );
             }
 
             ctx.globalAlpha = 1.0;
@@ -1500,7 +1600,19 @@
 
                 // 순차적으로 지정 위치에 삽입
                 for (let i = 0; i < copiedPages.length; i++) {
-                    State.pdfDoc.insertPage(targetIdx + i, copiedPages[i]);
+                    const actualTargetIdx = targetIdx + i;
+                    State.pdfDoc.insertPage(actualTargetIdx, copiedPages[i]);
+
+                    // v3.9.55: Also insert metadata placeholder to keep State.pages in sync
+                    // We don't have the originalIdx for the new doc easily here without more work, 
+                    // but we can at least ensure State.pages isn't shorter than pdfDoc.
+                    State.pages.splice(actualTargetIdx, 0, {
+                        id: Date.now() + i,
+                        originalIdx: i + 1, // For new doc, let's just use 1, 2, 3...
+                        thumbnailCanvas: null,
+                        rotation: 0,
+                        annotations: []
+                    });
                 }
             } else if (file.type.startsWith('image/')) {
                 // 이미지 추가 로직 (v3.9.38/39)
@@ -1522,6 +1634,15 @@
                     y: 0,
                     width: width,
                     height: height,
+                });
+
+                // v3.9.55: Add metadata for the new image page
+                State.pages.splice(targetIdx, 0, {
+                    id: Date.now(),
+                    originalIdx: 'IMG', // Mark as image
+                    thumbnailCanvas: null,
+                    rotation: 0,
+                    annotations: []
                 });
             } else {
                 throw new Error('지원하는 파일 형식이 아닙니다 (PDF 또는 이미지).');
@@ -1861,10 +1982,32 @@
     }
 
     function showModal(id) {
-        document.getElementById(id)?.classList.add('active');
+        const el = document.getElementById(id);
+        if (el) {
+            el.classList.add('active');
+            el.style.display = 'flex';
+            el.style.zIndex = '9999';
+            el.style.opacity = '1';
+            el.style.visibility = 'visible';
+            el.style.top = '0';
+            el.style.left = '0';
+            el.style.width = '100%';
+            el.style.height = '100%';
+
+            // Debug computed style
+            setTimeout(() => {
+                const style = window.getComputedStyle(el);
+                console.log(`[SF_DEBUG] Modal ${id} computed - Display: ${style.display}, Opacity: ${style.opacity}, Visibility: ${style.visibility}, Z-Index: ${style.zIndex}`);
+            }, 100);
+        }
     }
     window.closeModal = function (id) {
-        document.getElementById(id)?.classList.remove('active');
+        const el = document.getElementById(id);
+        if (el) {
+            el.classList.remove('active');
+            el.style.display = '';
+            el.style.zIndex = '';
+        }
     };
 
     async function addPageNumbering() {
